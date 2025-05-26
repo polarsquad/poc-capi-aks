@@ -1,0 +1,6 @@
+# Terraform variables file template
+# Copy this to terraform.tfvars and customize as needed
+
+# resource_group_name = "aks-cluster-rg"
+# location = "eastus"
+# service_principal_name = "aks-cluster-sp"
