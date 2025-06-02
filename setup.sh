@@ -67,8 +67,8 @@ if [ -z "$GITHUB_OWNER" ]; then
 fi
 
 if [ -z "$GITHUB_REPO" ]; then
-    print_warning "GITHUB_REPO not set, using default: poc-capi-aks-flux"
-    export GITHUB_REPO="poc-capi-aks-flux"
+    print_warning "GITHUB_REPO not set, using default: poc-capi-aks"
+    export GITHUB_REPO="poc-capi-aks"
 fi
 
 print_success "Environment variables configured"

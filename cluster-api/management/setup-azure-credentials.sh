@@ -6,16 +6,16 @@ set -e
 echo "Setting up Azure credentials for ClusterAPI..."
 
 # Check if Terraform outputs are available
-if [ ! -f "../terraform/terraform.tfstate" ]; then
+if [ ! -f "terraform/terraform.tfstate" ]; then
     echo "ERROR: Terraform state not found. Please run terraform apply first."
     exit 1
 fi
 
 # Extract values from Terraform outputs
-AZURE_SUBSCRIPTION_ID=$(cd ../terraform && terraform output -raw subscription_id)
-AZURE_TENANT_ID=$(cd ../terraform && terraform output -raw tenant_id)
-AZURE_CLIENT_ID=$(cd ../terraform && terraform output -raw service_principal_client_id)
-AZURE_CLIENT_SECRET=$(cd ../terraform && terraform output -raw service_principal_client_secret)
+AZURE_SUBSCRIPTION_ID=$(cd terraform && terraform output -raw subscription_id)
+AZURE_TENANT_ID=$(cd terraform && terraform output -raw tenant_id)
+AZURE_CLIENT_ID=$(cd terraform && terraform output -raw service_principal_client_id)
+AZURE_CLIENT_SECRET=$(cd terraform && terraform output -raw service_principal_client_secret)
 
 # Validate required variables
 if [ -z "$AZURE_SUBSCRIPTION_ID" ] || [ -z "$AZURE_TENANT_ID" ] || [ -z "$AZURE_CLIENT_ID" ] || [ -z "$AZURE_CLIENT_SECRET" ]; then
@@ -35,7 +35,7 @@ cat <<EOF | kubectl apply -f -
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureClusterIdentity
 metadata:
-  name: cluster-identity
+  name: azure-cluster-identity
   namespace: default
 spec:
   type: ServicePrincipal

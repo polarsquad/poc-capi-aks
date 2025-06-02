@@ -131,7 +131,7 @@ cd ../..
 ```bash
 # Set GitHub repository details
 export GITHUB_OWNER="your-github-username"
-export GITHUB_REPO="poc-capi-aks-flux"
+export GITHUB_REPO="poc-capi-aks"
 export GITHUB_TOKEN="your-github-token"
 
 # Bootstrap Flux

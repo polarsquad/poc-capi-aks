@@ -5,8 +5,9 @@ set -e
 
 CLUSTER_NAME="aks-workload-cluster"
 GITHUB_OWNER=${GITHUB_OWNER:-"your-github-username"}
-GITHUB_REPO=${GITHUB_REPO:-"poc-capi-aks-flux"}
+GITHUB_REPO=${GITHUB_REPO:-"poc-capi-aks"}
 GITHUB_BRANCH=${GITHUB_BRANCH:-"main"}
+KUBECONFIG=$(pwd)/${CLUSTER_NAME:-"aks-workload-cluster"}.kubeconfig
 
 echo "Setting up FluxCD on AKS cluster..."
 

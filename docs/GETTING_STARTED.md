@@ -18,7 +18,7 @@ Install the following tools on your macOS system:
 brew install azure-cli kubectl helm kind terraform git
 
 # Install ClusterAPI CLI
-curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.1/clusterctl-darwin-amd64 -o clusterctl
+curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.2/clusterctl-darwin-amd64 -o clusterctl
 chmod +x clusterctl
 sudo mv clusterctl /usr/local/bin/
 
@@ -50,7 +50,7 @@ az account set --subscription "Your Subscription Name"
 ```bash
 export GITHUB_TOKEN="your_github_token"
 export GITHUB_OWNER="your_github_username"
-export GITHUB_REPO="poc-capi-aks-flux"  # This repo will be created automatically
+export GITHUB_REPO="poc-capi-aks"  # This repo will be created automatically
 ```
 
 ### 4. Docker Desktop

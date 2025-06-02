@@ -24,13 +24,14 @@ metadata:
   name: aks-workload-cluster
   namespace: default
 spec:
-  location: eastus
-  resourceGroupName: aks-cluster-rg
+  location: ${AZURE_LOCATION:-eastus}
+  resourceGroupName: ${AZURE_RESOURCE_GROUP:-aks-cluster-rg}
   subscriptionID: ee46be2c-4b97-4627-b137-84ebcdc5aebb
-  version: v1.30.12
-  networkPlugin: kubenet
+  version: v1.29.2
+  networkPolicy: azure
+  networkPlugin: azure
   sku:
-    tier: Free
+    tier: Standard
   identity:
     type: SystemAssigned
   identityRef:
@@ -39,6 +40,14 @@ spec:
     name: azure-cluster-identity
   apiServerAccessProfile:
     enablePrivateCluster: false
+  addonProfiles:
+  - name: azureKeyvaultSecretsProvider
+    enabled: true
+  - name: azurepolicy
+    enabled: true
+  dnsServiceIP: 10.0.0.10
+  oidcIssuerProfile:
+    enabled: true
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedCluster
@@ -53,20 +62,15 @@ metadata:
   namespace: default
 spec:
   clusterName: aks-workload-cluster
-  replicas: 1
+  replicas: 2
   template:
     spec:
       clusterName: aks-workload-cluster
-      bootstrap:
-        configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-          kind: KubeadmConfig
-          name: agentpool0-bootstrap
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: AzureManagedMachinePool
         name: agentpool0
-      version: v1.30.12
+      version: v1.29.2
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool

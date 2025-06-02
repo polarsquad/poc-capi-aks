@@ -6,8 +6,8 @@ set -e
 echo "Generating ClusterAPI workload cluster manifests..."
 
 # Load Azure credentials
-if [ -f "../management/azure-credentials.env" ]; then
-    source ../management/azure-credentials.env
+if [ -f "../../azure-credentials.env" ]; then
+    source ../../azure-credentials.env
 else
     echo "ERROR: Azure credentials not found. Please run setup-azure-credentials.sh first."
     exit 1
@@ -39,7 +39,7 @@ echo "Cluster provisioning completed!"
 
 # Get kubeconfig
 echo "Generating kubeconfig for workload cluster..."
-clusterctl get kubeconfig aks-workload-cluster > aks-workload-cluster.kubeconfig
+clusterctl get kubeconfig aks-workload-cluster > ../../aks-workload-cluster.kubeconfig
 
 echo "Workload cluster is ready!"
 echo "Use the following command to access the cluster:"
