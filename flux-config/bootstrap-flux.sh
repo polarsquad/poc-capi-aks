@@ -7,7 +7,7 @@ CLUSTER_NAME="aks-workload-cluster"
 GITHUB_OWNER=${GITHUB_OWNER:-"your-github-username"}
 GITHUB_REPO=${GITHUB_REPO:-"poc-capi-aks"}
 GITHUB_BRANCH=${GITHUB_BRANCH:-"main"}
-KUBECONFIG=$(pwd)/${CLUSTER_NAME:-"aks-workload-cluster"}.kubeconfig
+KUBECONFIG=${CLUSTER_NAME}.kubeconfig
 
 echo "Setting up FluxCD on AKS cluster..."
 
@@ -32,9 +32,28 @@ fi
 # Set kubeconfig
 export KUBECONFIG=${CLUSTER_NAME}.kubeconfig
 
+# Process FluxCD configuration template
+echo "Processing FluxCD configuration template..."
+TEMPLATE_FILE="/flux-config/clusters/${CLUSTER_NAME}.yaml.template"
+CONFIG_FILE="/flux-config/clusters/${CLUSTER_NAME}.yaml"
+
+if [ -f "$TEMPLATE_FILE" ]; then
+    envsubst < "$TEMPLATE_FILE" > "$CONFIG_FILE"
+    echo "Generated ${CONFIG_FILE} from template"
+else
+    echo "WARNING: Template file ${TEMPLATE_FILE} not found, skipping template processing"
+fi
+
 # Pre-flight check
 echo "Running pre-flight check..."
 flux check --pre
+
+# Apply FluxCD configuration if it exists
+if [ -f "$CONFIG_FILE" ]; then
+    echo "Applying FluxCD configuration..."
+    kubectl apply -f "$CONFIG_FILE"
+    echo "FluxCD configuration applied successfully"
+fi
 
 # Bootstrap Flux
 echo "Bootstrapping FluxCD..."
