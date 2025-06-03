@@ -27,7 +27,7 @@ spec:
   location: eastus
   resourceGroupName: aks-cluster-rg
   subscriptionID: ee46be2c-4b97-4627-b137-84ebcdc5aebb
-  version: v1.30.12
+  version: v1.32.4
   networkPlugin: kubenet
   sku:
     tier: Free
@@ -66,7 +66,7 @@ spec:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: AzureManagedMachinePool
         name: agentpool0
-      version: v1.30.12
+      version: v1.32.4
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool

@@ -42,15 +42,9 @@ flux bootstrap github \
   --owner=${GITHUB_OWNER} \
   --repository=${GITHUB_REPO} \
   --branch=${GITHUB_BRANCH} \
-  --path=./clusters/aks-workload-cluster \
+  --path=/flux-config/clusters \
   --personal \
-  --private=false
-
-echo "Waiting for Flux components to be ready..."
-kubectl wait --for=condition=Ready --timeout=300s -n flux-system deployment/source-controller
-kubectl wait --for=condition=Ready --timeout=300s -n flux-system deployment/kustomize-controller
-kubectl wait --for=condition=Ready --timeout=300s -n flux-system deployment/helm-controller
-kubectl wait --for=condition=Ready --timeout=300s -n flux-system deployment/notification-controller
+  --private=true
 
 echo "FluxCD bootstrap completed successfully!"
 echo ""

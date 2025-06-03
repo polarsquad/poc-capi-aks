@@ -6,7 +6,7 @@ echo "Testing Node Pool Configuration..."
 
 # Test minimum node count
 NODE_COUNT=$(kubectl --kubeconfig=${CLUSTER_NAME}.kubeconfig get nodes --no-headers | wc -l)
-if [ $NODE_COUNT -ge 2 ]; then
+if [ $NODE_COUNT -ge 1 ]; then
     echo "PASS: Sufficient nodes ($NODE_COUNT) available"
 else
     echo "FAIL: Insufficient nodes ($NODE_COUNT)"

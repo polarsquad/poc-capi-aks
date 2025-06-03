@@ -15,16 +15,7 @@ Install the following tools on your macOS system:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # Install required tools
-brew install azure-cli kubectl helm kind terraform git
-
-# Install ClusterAPI CLI
-curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.2/clusterctl-darwin-amd64 -o clusterctl
-chmod +x clusterctl
-sudo mv clusterctl /usr/local/bin/
-
-# Install Flux CLI
-curl -s https://fluxcd.io/install.sh | sudo bash
-```
+brew install azure-cli kubectl helm kind terraform git clusterctl fluxcd/tap/flux
 
 ### 2. Azure Setup
 
@@ -41,17 +32,10 @@ az account set --subscription "Your Subscription Name"
 
 ### 3. GitHub Setup
 
-1. Create a GitHub personal access token:
-   - Go to https://github.com/settings/tokens
-   - Generate a new token with `repo` permissions
-   - Save the token securely
-
-2. Set environment variables:
-```bash
-export GITHUB_TOKEN="your_github_token"
-export GITHUB_OWNER="your_github_username"
-export GITHUB_REPO="poc-capi-aks"  # This repo will be created automatically
-```
+Create a GitHub personal access token:
+- Go to https://github.com/settings/tokens
+- Generate a new token with the following permissions in the `repo` scope - `content:read+write, admin:read+write` including mandatory `metadata:read` permissions.
+- Save the token securely
 
 ### 4. Docker Desktop
 
@@ -73,7 +57,7 @@ cd poc-capi-aks
 cp .env.example .env
 
 # Edit .env file with your values
-nano .env
+vim .env
 ```
 
 ### Step 2: Configure Terraform Variables
@@ -83,7 +67,7 @@ nano .env
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 
 # Edit with your specific values
-nano terraform/terraform.tfvars
+vim terraform/terraform.tfvars
 ```
 
 Example `terraform.tfvars`:
@@ -94,6 +78,12 @@ service_principal_name = "my-aks-cluster-sp"
 ```
 
 ### Step 3: Run Automated Setup
+
+```bash
+# First source the environment variables in your terminal
+source .env
+./setup.sh
+```
 
 ```bash
 # Make setup script executable and run

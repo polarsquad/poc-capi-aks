@@ -1,4 +1,4 @@
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
   name: flux-config
@@ -9,28 +9,28 @@ spec:
     branch: main
   url: https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}
 ---
-apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: apps
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./apps
+  path: /flux-config/apps
   prune: true
   sourceRef:
     kind: GitRepository
     name: flux-config
   targetNamespace: default
 ---
-apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: infrastructure
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./infrastructure
+  path: /flux-config/infrastructure
   prune: true
   sourceRef:
     kind: GitRepository
