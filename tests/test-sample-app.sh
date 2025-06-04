@@ -31,7 +31,7 @@ else
 fi
 
 # Test deployment is ready
-kubectl --kubeconfig=${CLUSTER_NAME}.kubeconfig get deployment ${APP_NAME} -n ${APP_NAMESPACE} -o jsonpath='{.status.readyReplicas}' 2>/dev/null
+kubectl --kubeconfig=${CLUSTER_NAME}.kubeconfig get deployment ${APP_NAME} -n ${APP_NAMESPACE} -o jsonpath='{.status.readyReplicas}{"\n"}{end}' 2>/dev/null
 READY_REPLICAS=$?
 if [ $READY_REPLICAS -gt 0 ]; then
     echo "PASS: Sample application deployment is ready"

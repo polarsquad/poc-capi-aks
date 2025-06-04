@@ -1,7 +1,7 @@
 #!/bin/bash
 # Test Script: test-git-connection.sh
 CLUSTER_NAME="aks-workload-cluster"
-REPO_NAME="flux-config"
+REPO_NAME="flux-system"
 
 echo "Testing Git Repository Connection..."
 

@@ -5,7 +5,7 @@ CLUSTER_NAME="aks-workload-cluster"
 echo "Testing ClusterAPI Manifests..."
 
 # Test cluster manifest syntax
-kubectl apply --dry-run=client -f ../cluster-api/workload/ 2>/dev/null
+kubectl apply --dry-run=client -f ./cluster-api/workload/cluster.yaml 2>/dev/null
 if [ $? -eq 0 ]; then
     echo "PASS: Cluster manifest syntax valid"
 else

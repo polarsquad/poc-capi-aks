@@ -23,7 +23,7 @@ spec:
         kind: HelmRepository
         name: ingress-nginx
         namespace: flux-system
-  targetNamespace: defaultß
+  targetNamespace: default
   values:
     controller:
       service:

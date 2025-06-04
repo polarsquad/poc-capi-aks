@@ -13,16 +13,7 @@ A comprehensive Infrastructure as Code solution for Azure Kubernetes Service (AK
 
 ## Quick Start
 
-```bash
-# 1. Set required environment variables
-export GITHUB_TOKEN="your-github-token"
-export GITHUB_OWNER="your-github-username"
-export GITHUB_REPO="your-gitops-repo"
-
-# 2. Run the complete setup
-chmod +x setup.sh
-./setup.sh
-```
+Refer to [guide](/docs/GETTING_STARTED.md)
 
 ## Architecture
 
@@ -88,12 +79,6 @@ The project includes a comprehensive test-driven development approach:
 - Azure subscription with permissions
 - GitHub account and personal access token
 - Local tools: `az`, `kubectl`, `helm`, `kind`, `clusterctl`, `flux`, `terraform`
-
-## Documentation
-
-Detailed documentation available in:
-- [Complete Setup Guide](docs/README.md)
-- [Test-Driven Development Plan](prompts/01-initial-prompt.md)
 
 ## GitOps Workflow
 
