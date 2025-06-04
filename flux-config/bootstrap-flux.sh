@@ -33,27 +33,28 @@ fi
 export KUBECONFIG=${CLUSTER_NAME}.kubeconfig
 
 # Process FluxCD configuration template
-echo "Processing FluxCD configuration template..."
-TEMPLATE_FILE="/flux-config/clusters/${CLUSTER_NAME}.yaml.template"
-CONFIG_FILE="/flux-config/clusters/${CLUSTER_NAME}.yaml"
+# Uncomment the following lines if you have a FluxCD configuration template to process
+# echo "Processing FluxCD configuration template..."
+# TEMPLATE_FILE="./flux-config/clusters/${CLUSTER_NAME}.yaml.template"
+# CONFIG_FILE="./flux-config/clusters/${CLUSTER_NAME}.yaml"
 
-if [ -f "$TEMPLATE_FILE" ]; then
-    envsubst < "$TEMPLATE_FILE" > "$CONFIG_FILE"
-    echo "Generated ${CONFIG_FILE} from template"
-else
-    echo "WARNING: Template file ${TEMPLATE_FILE} not found, skipping template processing"
-fi
+# if [ -f "$TEMPLATE_FILE" ]; then
+#     envsubst < "$TEMPLATE_FILE" > "$CONFIG_FILE"
+#     echo "Generated ${CONFIG_FILE} from template"
+# else
+#     echo "WARNING: Template file ${TEMPLATE_FILE} not found, skipping template processing"
+# fi
 
 # Pre-flight check
 echo "Running pre-flight check..."
 flux check --pre
 
 # Apply FluxCD configuration if it exists
-if [ -f "$CONFIG_FILE" ]; then
-    echo "Applying FluxCD configuration..."
-    kubectl apply -f "$CONFIG_FILE"
-    echo "FluxCD configuration applied successfully"
-fi
+# if [ -f "$CONFIG_FILE" ]; then
+#     echo "Applying FluxCD configuration..."
+#     kubectl apply -f "$CONFIG_FILE"
+#     echo "FluxCD configuration applied successfully"
+# fi
 
 # Bootstrap Flux
 echo "Bootstrapping FluxCD..."
