@@ -1,18 +1,18 @@
 #!/bin/bash
 # Test Script: test-aks-provisioning.sh
-CLUSTER_NAME="aks-workload-cluster"
-RG_NAME="aks-cluster-rg"
+WORKLOAD_CLUSTER_NAME="${CLUSTER_NAME}"
+RG_NAME="${CLUSTER_NAME}-rg"
 
 echo "Testing AKS Cluster Provisioning..."
 
 # Test cluster provisioning status
-CLUSTER_PHASE=$(kubectl get cluster $CLUSTER_NAME -o jsonpath='{.status.phase}' 2>/dev/null)
+CLUSTER_PHASE=$(kubectl get cluster $WORKLOAD_CLUSTER_NAME -o jsonpath='{.status.phase}' 2>/dev/null)
 if [ "$CLUSTER_PHASE" = "Provisioned" ]; then
     echo "PASS: Cluster provisioned successfully"
 else
     echo "INFO: Cluster phase: $CLUSTER_PHASE (waiting for Provisioned)"
     # Wait for cluster to be provisioned (timeout after 20 minutes)
-    kubectl wait --for=condition=Ready cluster/$CLUSTER_NAME --timeout=1200s
+    kubectl wait --for=condition=Ready cluster/$WORKLOAD_CLUSTER_NAME --timeout=1200s
     if [ $? -eq 0 ]; then
         echo "PASS: Cluster provisioned successfully"
     else
@@ -22,7 +22,7 @@ else
 fi
 
 # Test Azure AKS resource exists
-az aks show --resource-group $RG_NAME --name $CLUSTER_NAME 2>/dev/null
+az aks show --resource-group $RG_NAME --name $WORKLOAD_CLUSTER_NAME 2>/dev/null
 if [ $? -eq 0 ]; then
     echo "PASS: AKS cluster exists in Azure"
 else
@@ -32,10 +32,10 @@ fi
 
 # Get kubeconfig for the workload cluster
 echo "Getting kubeconfig for workload cluster..."
-clusterctl get kubeconfig $CLUSTER_NAME > ${CLUSTER_NAME}.kubeconfig
+clusterctl get kubeconfig $WORKLOAD_CLUSTER_NAME > ${WORKLOAD_CLUSTER_NAME}.kubeconfig
 
 # Test cluster connectivity
-kubectl --kubeconfig=${CLUSTER_NAME}.kubeconfig get nodes 2>/dev/null
+kubectl --kubeconfig=${WORKLOAD_CLUSTER_NAME}.kubeconfig get nodes 2>/dev/null
 if [ $? -eq 0 ]; then
     echo "PASS: Can connect to AKS cluster"
 else

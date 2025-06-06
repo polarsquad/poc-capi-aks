@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test Script: test-cluster-manifests.sh
-CLUSTER_NAME="aks-workload-cluster"
+WORLOAD_CLUSTER_NAME="${CLUSTER_NAME}"
 
 echo "Testing ClusterAPI Manifests..."
 
@@ -15,7 +15,7 @@ fi
 
 # Test required fields are present after applying manifests
 kubectl apply -f ../cluster-api/workload/ 2>/dev/null
-CLUSTER_EXISTS=$(kubectl get cluster $CLUSTER_NAME -o name 2>/dev/null)
+CLUSTER_EXISTS=$(kubectl get cluster $WORKLOAD_CLUSTER_NAME -o name 2>/dev/null)
 if [ -n "$CLUSTER_EXISTS" ]; then
     echo "PASS: Cluster resource created"
 else

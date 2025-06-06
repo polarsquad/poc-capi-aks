@@ -1,12 +1,12 @@
 #!/bin/bash
 # Test Script: test-gitops-workflow.sh
-CLUSTER_NAME="aks-workload-cluster"
+WORKLOAD_CLUSTER_NAME="${CLUSTER_NAME}"
 APP_NAME="sample-app"
 
 echo "Testing GitOps Workflow..."
 
 # Get initial replica count
-INITIAL_REPLICAS=$(kubectl --kubeconfig=${CLUSTER_NAME}.kubeconfig get deployment ${APP_NAME} -o jsonpath='{.spec.replicas}' 2>/dev/null)
+INITIAL_REPLICAS=$(kubectl --kubeconfig=${WORKLOAD_CLUSTER_NAME}.kubeconfig get deployment ${APP_NAME} -o jsonpath='{.spec.replicas}' 2>/dev/null)
 
 if [ -z "$INITIAL_REPLICAS" ]; then
     echo "FAIL: Sample application deployment not found"
@@ -33,7 +33,7 @@ echo "Waiting 60 seconds for Flux to sync changes..."
 sleep 60
 
 # Check if replicas changed
-CURRENT_REPLICAS=$(kubectl --kubeconfig=${CLUSTER_NAME}.kubeconfig get deployment ${APP_NAME} -o jsonpath='{.spec.replicas}' 2>/dev/null)
+CURRENT_REPLICAS=$(kubectl --kubeconfig=${WORKLOAD_CLUSTER_NAME}.kubeconfig get deployment ${APP_NAME} -o jsonpath='{.spec.replicas}' 2>/dev/null)
 
 echo "Current replicas: $CURRENT_REPLICAS"
 

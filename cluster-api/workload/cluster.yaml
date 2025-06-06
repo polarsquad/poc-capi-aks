@@ -51,7 +51,7 @@ spec:
     metadata:
       annotations:
         serviceoperator.azure.com/credential-from: azure-cluster-identity
-      name: ${CLUSTER_NAME}
+      name: ${CLUSTER_NAME}-rg
     spec:
       location: ${AZURE_LOCATION}
 ---

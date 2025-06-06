@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test Script: test-disaster-recovery.sh
-CLUSTER_NAME="aks-workload-cluster"
+CLUSTER_NAME="${CLUSTER_NAME}"
 
 echo "Testing disaster recovery scenario..."
 echo "⚠️  WARNING: This will delete and recreate the cluster!"
