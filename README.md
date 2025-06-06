@@ -4,11 +4,10 @@ A comprehensive Infrastructure as Code solution for Azure Kubernetes Service (AK
 
 ## Features
 
-- ✅ **Infrastructure as Code**: Terraform for Azure resources
+- ✅ **Entirely Infrastructure as Code**: Terraform for basic Azure resources
 - ✅ **Cluster Lifecycle Management**: ClusterAPI with Azure provider (CAPZ)
-- ✅ **GitOps Continuous Delivery**: FluxCD v2
+- ✅ **GitOps Continuous Delivery**: FluxCD v2 for Kubernetes Resource Management
 - ✅ **Test-Driven Development**: Comprehensive test suite
-- ✅ **Production Ready**: Security best practices and monitoring
 - ✅ **Disaster Recovery**: Automated cluster recreation capabilities
 
 ## Quick Start

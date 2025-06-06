@@ -1,10 +1,10 @@
 # Getting Started Guide
 
-This guide walks you through setting up the Azure AKS cluster with ClusterAPI and FluxCD step by step.
+This guide walks you through setting up the Azure AKS cluster with ClusterAPI and FluxCD step-by-step.
 
 ## Prerequisites Checklist
 
-Before you begin, ensure you have:
+Before you begin...
 
 ### 1. Software Installation
 
@@ -82,10 +82,10 @@ service_principal_name = "my-aks-cluster-sp"
 ```bash
 # First source the environment variables in your terminal
 source .env
-./setup.sh
 ```
 
 ```bash
+# It's important to run the setup script from the repository's root directory
 # Make setup script executable and run
 chmod +x setup.sh
 ./setup.sh
@@ -250,7 +250,7 @@ After successful setup:
    flux logs --follow
    
    # Force reconciliation
-   flux reconcile source git flux-config
+   flux reconcile source git flux-system
    ```
 
 ### Getting Help

@@ -7,8 +7,8 @@ echo "Setting up ClusterAPI Management Cluster..."
 
 # Variables
 CLUSTER_NAME="capi-management"
-CAPI_VERSION="v1.6.1"
-CAPZ_VERSION="v1.13.2"
+CAPI_VERSION="v1.10.2"
+CAPZ_VERSION="v1.19.4"
 
 # Check prerequisites
 echo "Checking prerequisites..."
