@@ -1,88 +1,138 @@
-# Cluster API Workload Cluster Configuration for Azure AKS
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
-  name: aks-workload-cluster
+  name: ${CLUSTER_NAME}
   namespace: default
 spec:
-  clusterNetwork:
-    pods:
-      cidrBlocks:
-      - 192.168.0.0/16
   controlPlaneRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: AzureManagedControlPlane
-    name: aks-workload-cluster
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: AzureASOManagedControlPlane
+    name: ${CLUSTER_NAME}
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: AzureManagedCluster
-    name: aks-workload-cluster
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: AzureASOManagedCluster
+    name: ${CLUSTER_NAME}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureManagedControlPlane
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: AzureASOManagedControlPlane
 metadata:
-  name: aks-workload-cluster
+  name: ${CLUSTER_NAME}
   namespace: default
 spec:
-  location: eastus
-  resourceGroupName: aks-cluster-rg
-  subscriptionID: ee46be2c-4b97-4627-b137-84ebcdc5aebb
-  version: v1.32.4
-  networkPlugin: kubenet
-  sku:
-    tier: Free
-  identity:
-    type: SystemAssigned
-  identityRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-    kind: AzureClusterIdentity
-    name: azure-cluster-identity
-  apiServerAccessProfile:
-    enablePrivateCluster: false
+  resources:
+  - apiVersion: containerservice.azure.com/v1api20240901
+    kind: ManagedCluster
+    metadata:
+      annotations:
+        serviceoperator.azure.com/credential-from: azure-cluster-identity
+      name: ${CLUSTER_NAME}
+    spec:
+      dnsPrefix: ${CLUSTER_NAME}
+      identity:
+        type: SystemAssigned
+      location: ${AZURE_LOCATION}
+      networkProfile:
+        networkPlugin: azure
+      owner:
+        name: ${CLUSTER_NAME}
+      servicePrincipalProfile:
+        clientId: msi
+  version: ${KUBERNETES_VERSION}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureManagedCluster
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: AzureASOManagedCluster
 metadata:
-  name: aks-workload-cluster
+  name: ${CLUSTER_NAME}
   namespace: default
+spec:
+  resources:
+  - apiVersion: resources.azure.com/v1api20200601
+    kind: ResourceGroup
+    metadata:
+      annotations:
+        serviceoperator.azure.com/credential-from: azure-cluster-identity
+      name: ${CLUSTER_NAME}
+    spec:
+      location: ${AZURE_LOCATION}
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachinePool
 metadata:
-  name: agentpool0
+  name: ${CLUSTER_NAME}-pool0
   namespace: default
 spec:
-  clusterName: aks-workload-cluster
-  replicas: 1
+  clusterName: ${CLUSTER_NAME}
+  replicas: ${WORKER_MACHINE_COUNT}
   template:
+    metadata: {}
     spec:
-      clusterName: aks-workload-cluster
       bootstrap:
-        configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-          kind: KubeadmConfig
-          name: agentpool0-bootstrap
+        dataSecretName: ""
+      clusterName: ${CLUSTER_NAME}
       infrastructureRef:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-        kind: AzureManagedMachinePool
-        name: agentpool0
-      version: v1.32.4
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: AzureASOManagedMachinePool
+        name: ${CLUSTER_NAME}-pool0
+      version: ${KUBERNETES_VERSION}
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureManagedMachinePool
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: AzureASOManagedMachinePool
 metadata:
-  name: agentpool0
+  name: ${CLUSTER_NAME}-pool0
   namespace: default
 spec:
-  mode: System
-  sku: Standard_D2s_v3
-  osDiskSizeGB: 128
-  enableNodePublicIP: false
-  maxPods: 30
-  availabilityZones:
-  - "1"
-  - "2"
-  - "3"
-  scaling:
-    minSize: 1
-    maxSize: 5
+  resources:
+  - apiVersion: containerservice.azure.com/v1api20240901
+    kind: ManagedClustersAgentPool
+    metadata:
+      annotations:
+        serviceoperator.azure.com/credential-from: azure-cluster-identity
+      name: ${CLUSTER_NAME}-pool0
+    spec:
+      azureName: pool0
+      mode: System
+      owner:
+        name: ${CLUSTER_NAME}
+      type: VirtualMachineScaleSets
+      vmSize: ${AZURE_NODE_MACHINE_TYPE}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: ${CLUSTER_NAME}-pool1
+  namespace: default
+spec:
+  clusterName: ${CLUSTER_NAME}
+  replicas: ${WORKER_MACHINE_COUNT}
+  template:
+    metadata: {}
+    spec:
+      bootstrap:
+        dataSecretName: ""
+      clusterName: ${CLUSTER_NAME}
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: AzureASOManagedMachinePool
+        name: ${CLUSTER_NAME}-pool1
+      version: ${KUBERNETES_VERSION}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: AzureASOManagedMachinePool
+metadata:
+  name: ${CLUSTER_NAME}-pool1
+  namespace: default
+spec:
+  resources:
+  - apiVersion: containerservice.azure.com/v1api20240901
+    kind: ManagedClustersAgentPool
+    metadata:
+      annotations:
+        serviceoperator.azure.com/credential-from: azure-cluster-identity
+      name: ${CLUSTER_NAME}-pool1
+    spec:
+      azureName: pool1
+      mode: User
+      owner:
+        name: ${CLUSTER_NAME}
+      type: VirtualMachineScaleSets
+      vmSize: ${AZURE_NODE_MACHINE_TYPE}

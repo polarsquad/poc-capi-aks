@@ -32,22 +32,18 @@ kubectl create secret generic azure-cluster-identity-secret \
 # Create Azure cluster identity
 echo "Creating Azure cluster identity..."
 cat <<EOF | kubectl apply -f -
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureClusterIdentity
+apiVersion: v1
+kind: Secret
 metadata:
-  name: azure-cluster-identity
-  namespace: default
-spec:
-  type: ServicePrincipal
-  tenantID: ${AZURE_TENANT_ID}
-  clientID: ${AZURE_CLIENT_ID}
-  clientSecret:
-    name: azure-cluster-identity-secret
-    namespace: default
-  allowedNamespaces:
-    list:
-    - default
+ name: azure-cluster-identity
+ namespace: default
+stringData:
+ AZURE_SUBSCRIPTION_ID: "$AZURE_SUBSCRIPTION_ID"
+ AZURE_TENANT_ID: "$AZURE_TENANT_ID"
+ AZURE_CLIENT_ID: "$AZURE_CLIENT_ID"
+ AZURE_CLIENT_SECRET: "$AZURE_CLIENT_SECRET"
 EOF
+
 
 echo "Azure credentials setup completed successfully!"
 
