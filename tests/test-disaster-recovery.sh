@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test Script: test-disaster-recovery.sh
-CLUSTER_NAME="${CLUSTER_NAME}"
+WORKLOAD_CLUSTER_NAME="${CLUSTER_NAME}"
 
 echo "Testing disaster recovery scenario..."
 echo "⚠️  WARNING: This will delete and recreate the cluster!"
@@ -16,20 +16,20 @@ echo "Starting disaster recovery test..."
 
 # Backup current cluster info
 echo "Backing up cluster information..."
-kubectl get cluster $CLUSTER_NAME -o yaml > cluster-backup.yaml
-kubectl get azuremanagedcluster $CLUSTER_NAME -o yaml > azuremanagedcluster-backup.yaml
-kubectl get azuremanagedcontrolplane $CLUSTER_NAME -o yaml > azuremanagedcontrolplane-backup.yaml
+kubectl get cluster $WORKLOAD_CLUSTER_NAME -o yaml > cluster-backup.yaml
+kubectl get azuremanagedcluster $WORKLOAD_CLUSTER_NAME -o yaml > azuremanagedcluster-backup.yaml
+kubectl get azuremanagedcontrolplane $WORKLOAD_CLUSTER_NAME -o yaml > azuremanagedcontrolplane-backup.yaml
 
 # Delete cluster (in test environment only)
 echo "Deleting cluster resources..."
-kubectl delete cluster $CLUSTER_NAME --wait=false
+kubectl delete cluster $WORKLOAD_CLUSTER_NAME --wait=false
 
 # Wait for deletion to start
 echo "Waiting for cluster deletion to complete..."
 sleep 60
 
 # Monitor deletion
-while kubectl get cluster $CLUSTER_NAME 2>/dev/null; do
+while kubectl get cluster $WORKLOAD_CLUSTER_NAME 2>/dev/null; do
     echo "Cluster still exists, waiting..."
     sleep 30
 done
@@ -46,7 +46,7 @@ kubectl apply -f ../cluster-api/workload/cluster-generated.yaml
 
 # Wait for provisioning
 echo "Waiting for cluster provisioning (this may take 15-20 minutes)..."
-kubectl wait --for=condition=Ready cluster/$CLUSTER_NAME --timeout=1200s
+kubectl wait --for=condition=Ready cluster/$WORKLOAD_CLUSTER_NAME --timeout=1200s
 
 if [ $? -eq 0 ]; then
     echo "✅ Cluster reprovisioned successfully"
@@ -57,7 +57,7 @@ fi
 
 # Get new kubeconfig
 echo "Getting kubeconfig for restored cluster..."
-clusterctl get kubeconfig $CLUSTER_NAME > ${CLUSTER_NAME}-restored.kubeconfig
+clusterctl get kubeconfig $WORKLOAD_CLUSTER_NAME > ${WORKLOAD_CLUSTER_NAME}-restored.kubeconfig
 
 # Verify cluster and applications are restored
 echo "Verifying cluster functionality..."

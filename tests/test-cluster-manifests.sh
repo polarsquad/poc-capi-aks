@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test Script: test-cluster-manifests.sh
-WORLOAD_CLUSTER_NAME="${CLUSTER_NAME}"
+WORKLOAD_CLUSTER_NAME="${CLUSTER_NAME}"
 
 echo "Testing ClusterAPI Manifests..."
 
