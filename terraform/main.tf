@@ -22,7 +22,7 @@ provider "azuread" {}
 variable "resource_group_name" {
   description = "Name of the resource group"
   type        = string
-  default     = "aks-cluster-rg"
+  default     = "aks-workload-cluster-rg"
 }
 
 variable "location" {

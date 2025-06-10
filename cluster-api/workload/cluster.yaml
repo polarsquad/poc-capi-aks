@@ -34,7 +34,7 @@ spec:
       networkProfile:
         networkPlugin: azure
       owner:
-        name: ${CLUSTER_NAME}
+        name: ${CLUSTER_NAME}-rg
       servicePrincipalProfile:
         clientId: msi
   version: ${KUBERNETES_VERSION}
@@ -92,7 +92,7 @@ spec:
       azureName: pool0
       mode: System
       owner:
-        name: ${CLUSTER_NAME}
+        name: ${CLUSTER_NAME}-rg
       type: VirtualMachineScaleSets
       vmSize: ${AZURE_NODE_MACHINE_TYPE}
 ---
@@ -133,6 +133,6 @@ spec:
       azureName: pool1
       mode: User
       owner:
-        name: ${CLUSTER_NAME}
+        name: ${CLUSTER_NAME}-rg
       type: VirtualMachineScaleSets
       vmSize: ${AZURE_NODE_MACHINE_TYPE}
