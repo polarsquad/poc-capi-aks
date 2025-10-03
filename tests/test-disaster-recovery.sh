@@ -26,7 +26,7 @@ kubectl delete cluster $WORKLOAD_CLUSTER_NAME --wait=false
 
 # Wait for deletion to start
 echo "Waiting for cluster deletion to complete..."
-sleep 60
+sleep 30
 
 # Monitor deletion
 while kubectl get cluster $WORKLOAD_CLUSTER_NAME 2>/dev/null; do
@@ -42,13 +42,14 @@ sleep 300
 
 # Recreate cluster from manifests
 echo "Recreating cluster from manifests..."
-kubectl apply -f ../cluster-api/workload/cluster-generated.yaml
+kubectl apply -f cluster-api/workload/cluster-generated.yaml
 
 # Wait for provisioning
 echo "Waiting for cluster provisioning (this may take 15-20 minutes)..."
 kubectl wait --for=condition=Ready cluster/$WORKLOAD_CLUSTER_NAME --timeout=1200s
+KUBECTL_EXIT_CODE=$?
 
-if [ $? -eq 0 ]; then
+if [ $KUBECTL_EXIT_CODE -eq 0 ]; then
     echo "✅ Cluster reprovisioned successfully"
 else
     echo "❌ Cluster provisioning failed"
@@ -61,9 +62,9 @@ clusterctl get kubeconfig $WORKLOAD_CLUSTER_NAME > ${WORKLOAD_CLUSTER_NAME}-rest
 
 # Verify cluster and applications are restored
 echo "Verifying cluster functionality..."
-./test-aks-provisioning.sh && \
-./test-flux-installation.sh && \
-./test-sample-app.sh
+./tests/test-aks-provisioning.sh && \
+./tests/test-flux-installation.sh && \
+./tests/test-sample-app.sh
 
 if [ $? -eq 0 ]; then
     echo "🎉 Disaster recovery successful!"
