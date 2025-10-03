@@ -16,7 +16,7 @@ Install the following tools on your macOS system:
 
 # Install required tools
 brew install azure-cli kubectl helm kind terraform git clusterctl fluxcd/tap/flux
-
+```
 ### 2. Azure Setup
 
 ```bash
