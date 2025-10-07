@@ -1,15 +1,19 @@
-apiVersion: cluster.x-k8s.io/v1beta2
+---
+apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
   name: ${CLUSTER_NAME}
   namespace: default
 spec:
   controlPlaneRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: AzureASOManagedControlPlane
     name: ${CLUSTER_NAME}
   infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: AzureASOManagedCluster
     name: ${CLUSTER_NAME}
+
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureASOManagedControlPlane
@@ -36,6 +40,7 @@ spec:
       servicePrincipalProfile:
         clientId: msi
   version: ${KUBERNETES_VERSION}
+
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureASOManagedCluster
@@ -52,8 +57,9 @@ spec:
       name: ${CLUSTER_NAME}-rg
     spec:
       location: ${AZURE_LOCATION}
+      
 ---
-apiVersion: cluster.x-k8s.io/v1beta2
+apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachinePool
 metadata:
   name: ${CLUSTER_NAME}-pool0
@@ -62,15 +68,16 @@ spec:
   clusterName: ${CLUSTER_NAME}
   replicas: ${WORKER_MACHINE_COUNT}
   template:
-    metadata: {}
     spec:
       bootstrap:
         dataSecretName: ""
       clusterName: ${CLUSTER_NAME}
       infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: AzureASOManagedMachinePool
         name: ${CLUSTER_NAME}-pool0
       version: ${KUBERNETES_VERSION}
+
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureASOManagedMachinePool
@@ -92,8 +99,9 @@ spec:
         name: ${CLUSTER_NAME}-rg
       type: VirtualMachineScaleSets
       vmSize: ${AZURE_NODE_MACHINE_TYPE}
+
 ---
-apiVersion: cluster.x-k8s.io/v1beta2
+apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachinePool
 metadata:
   name: ${CLUSTER_NAME}-pool1
@@ -102,15 +110,16 @@ spec:
   clusterName: ${CLUSTER_NAME}
   replicas: ${WORKER_MACHINE_COUNT}
   template:
-    metadata: {}
     spec:
       bootstrap:
         dataSecretName: ""
       clusterName: ${CLUSTER_NAME}
       infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: AzureASOManagedMachinePool
         name: ${CLUSTER_NAME}-pool1
       version: ${KUBERNETES_VERSION}
+
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureASOManagedMachinePool

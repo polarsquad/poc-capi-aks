@@ -4,5 +4,5 @@ kind: Kustomization
 resources:
   - cluster.yaml
 
-patchesStrategicMerge:
-  - cluster-patch.yaml
+# patchesStrategicMerge:
+#   - cluster-patch.yaml
