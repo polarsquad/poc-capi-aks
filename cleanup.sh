@@ -67,10 +67,9 @@ cd ..
 
 # 4. Clean up local files
 echo "4. Cleaning up local files..."
-rm -f cluster-api/workload/azure-cluster-identity.yaml
-rm -f cluster-api/workload/aks-workload-cluster.kubeconfig
+rm -f cluster-api/workload/${CLUSTER_NAME}.kubeconfig
 rm -f cluster-api/workload/cluster-generated.yaml
-rm -f cluster-api/workload/aks-workload-cluster-restored.kubeconfig
+rm -f cluster-api/workload/${CLUSTER_NAME}-restored.kubeconfig
 rm -f cluster-api/management/azure-credentials.env
 rm -f tests/cluster-backup.yaml
 rm -f tests/azuremanagedcluster-backup.yaml
