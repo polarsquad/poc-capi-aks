@@ -28,12 +28,16 @@ echo "This may take 10-15 minutes..."
 # Monitor cluster creation
 kubectl get cluster ${CLUSTER_NAME} -w &
 WATCH_PID=$!
+# Ensure the background watch process is terminated when the script exits
+trap '[ -n "$WATCH_PID" ] && kill -0 $WATCH_PID 2>/dev/null && kill $WATCH_PID 2>/dev/null || true' EXIT
 
 # Wait for cluster to be provisioned
-kubectl wait --forcondition=Ready cluster/${CLUSTER_NAME} --timeout=900s
+kubectl wait --for='jsonpath={.status.conditions[?(@.type=="Available")].status}=True' cluster/${CLUSTER_NAME} --timeout=900s
 
 # Kill the watch process
-kill $WATCH_PID 2>/dev/null || true
+if kill -0 $WATCH_PID 2>/dev/null; then
+    kill $WATCH_PID 2>/dev/null || true
+fi
 
 echo "Cluster provisioning completed!"
 
