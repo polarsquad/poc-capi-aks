@@ -13,12 +13,13 @@ fi
 
 # Extract values from Terraform outputs
 AZURE_SUBSCRIPTION_ID=$(cd terraform && terraform output -raw subscription_id)
+ARM_SUBSCRIPTION_ID=$(cd terraform && terraform output -raw subscription_id)
 AZURE_TENANT_ID=$(cd terraform && terraform output -raw tenant_id)
 AZURE_CLIENT_ID=$(cd terraform && terraform output -raw service_principal_client_id)
 AZURE_CLIENT_SECRET=$(cd terraform && terraform output -raw service_principal_client_secret)
 
 # Validate required variables
-if [ -z "$AZURE_SUBSCRIPTION_ID" ] || [ -z "$AZURE_TENANT_ID" ] || [ -z "$AZURE_CLIENT_ID" ] || [ -z "$AZURE_CLIENT_SECRET" ]; then
+if [ -z "$AZURE_SUBSCRIPTION_ID" ] || [ -z "$AZURE_TENANT_ID" ] || [ -z "$AZURE_CLIENT_ID" ] || [ -z "$AZURE_CLIENT_SECRET" ] || [ -z "$ARM_SUBSCRIPTION_ID" ]; then
     echo "ERROR: Missing required Azure credentials from Terraform outputs"
     exit 1
 fi

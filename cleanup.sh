@@ -74,6 +74,7 @@ rm -f cluster-api/management/azure-credentials.env
 rm -f tests/cluster-backup.yaml
 rm -f tests/azuremanagedcluster-backup.yaml
 rm -f tests/azuremanagedcontrolplane-backup.yaml
+rm -f aks-workload-cluster.kubeconfig
 
 print_success "Local files cleaned up"
 
