@@ -2,5 +2,5 @@
 # Copy this to terraform.tfvars and customize as needed
 
 # resource_group_name = "aks-workload-cluster-rg"
-# location = "eastus"
+# location = "swedencentral"
 # service_principal_name = "aks-cluster-sp"

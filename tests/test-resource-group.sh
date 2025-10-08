@@ -1,7 +1,7 @@
 #!/bin/bash
 # Test Script: test-resource-group.sh
 RG_NAME="${CLUSTER_NAME}-rg"
-LOCATION="eastus"
+LOCATION="${AZURE_LOCATION}"
 
 echo "Testing Azure Resource Group..."
 

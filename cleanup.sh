@@ -38,8 +38,8 @@ echo "Starting cleanup..."
 
 # 1. Delete AKS workload cluster
 echo "1. Deleting AKS workload cluster..."
-if kubectl get cluster aks-workload-cluster 2>/dev/null; then
-    kubectl delete cluster aks-workload-cluster --wait=true --timeout=600s
+if kubectl get cluster ${CLUSTER_NAME} 2>/dev/null; then
+    kubectl delete cluster ${CLUSTER_NAME} --wait=true --timeout=600s
     print_success "AKS workload cluster deleted"
 else
     print_warning "AKS workload cluster not found"
@@ -47,8 +47,8 @@ fi
 
 # 2. Delete ClusterAPI management cluster
 echo "2. Deleting ClusterAPI management cluster..."
-if kind get clusters | grep -q capi-management; then
-    kind delete cluster --name capi-management
+if kind get clusters | grep -q ${CAPI_CLUSTER_NAME}; then
+    kind delete cluster --name ${CAPI_CLUSTER_NAME}
     print_success "Management cluster deleted"
 else
     print_warning "Management cluster not found"
@@ -67,9 +67,9 @@ cd ..
 
 # 4. Clean up local files
 echo "4. Cleaning up local files..."
-rm -f cluster-api/workload/aks-workload-cluster.kubeconfig
+rm -f cluster-api/workload/${CLUSTER_NAME}.kubeconfig
 rm -f cluster-api/workload/cluster-generated.yaml
-rm -f cluster-api/workload/aks-workload-cluster-restored.kubeconfig
+rm -f cluster-api/workload/${CLUSTER_NAME}-restored.kubeconfig
 rm -f cluster-api/management/azure-credentials.env
 rm -f tests/cluster-backup.yaml
 rm -f tests/azuremanagedcluster-backup.yaml

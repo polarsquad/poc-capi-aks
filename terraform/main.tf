@@ -3,11 +3,11 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+      version = "~> 4.47.0"
     }
     azuread = {
       source  = "hashicorp/azuread"
-      version = "~> 2.0"
+      version = "~> 3.6.0"
     }
   }
 }
@@ -61,14 +61,13 @@ resource "azuread_application" "main" {
 
 # Service Principal
 resource "azuread_service_principal" "main" {
-  application_id = azuread_application.main.application_id
+  client_id = azuread_application.main.client_id
   owners         = [data.azurerm_client_config.current.object_id]
 }
 
 # Service Principal Password
 resource "azuread_service_principal_password" "main" {
-  service_principal_id = azuread_service_principal.main.object_id
-  end_date_relative    = "8760h" # 1 year
+  service_principal_id = azuread_service_principal.main.id
 }
 
 # Role Assignment - Contributor on Subscription
@@ -91,7 +90,7 @@ output "resource_group_location" {
 
 output "service_principal_client_id" {
   description = "Client ID of the service principal"
-  value       = azuread_service_principal.main.application_id
+  value       = azuread_service_principal.main.client_id
 }
 
 output "service_principal_client_secret" {
