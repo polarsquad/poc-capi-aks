@@ -1,7 +1,24 @@
 #!/bin/bash
 # Generate and apply ClusterAPI workload cluster manifests
 
-set -e
+set -euo pipefail
+
+# Derive RESOURCE_GROUP_NAME if absent (prefers Terraform outputs)
+if [ -z "${RESOURCE_GROUP_NAME:-}" ]; then
+    if command -v terraform >/dev/null 2>&1 && [ -f "../../terraform/terraform.tfstate" ]; then
+        DERIVED_RG=$(terraform -chdir=../../terraform output -raw resource_group_name 2>/dev/null || true)
+        if [ -n "$DERIVED_RG" ]; then
+            export RESOURCE_GROUP_NAME="$DERIVED_RG"
+        fi
+    fi
+fi
+
+if [ -z "${RESOURCE_GROUP_NAME:-}" ]; then
+    echo "ERROR: RESOURCE_GROUP_NAME not set and not derivable (run terraform apply or export manually)." >&2
+    exit 1
+fi
+
+echo "Using RESOURCE_GROUP_NAME=$RESOURCE_GROUP_NAME"
 
 echo "Generating ClusterAPI workload cluster manifests..."
 
@@ -19,11 +36,17 @@ AZURE_ADMIN_GROUP_ID=${AZURE_ADMIN_GROUP_ID:-""}
 # Generate manifests with environment variable substitution
 envsubst < cluster.yaml > cluster-generated.yaml
 
+# Guard against legacy pattern lingering
+if grep -q '\${CLUSTER_NAME}-rg' cluster-generated.yaml; then
+    echo "ERROR: Deprecated pattern \\${CLUSTER_NAME}-rg detected in generated manifest." >&2
+    exit 1
+fi
+
 echo "Applying ClusterAPI manifests..."
 kubectl apply -f cluster-generated.yaml
 
-echo "Waiting for cluster to be ready..."
-echo "This may take 10-15 minutes..."
+echo "Waiting for cluster to be ready (Cluster Available condition)..."
+echo "This may take several minutes..."
 
 # Monitor cluster creation
 kubectl get cluster ${CLUSTER_NAME} -w &

@@ -78,7 +78,7 @@ The solution creates a multi-layered infrastructure:
   - `pool1`: User node pool (same sizing by default)
 - **Networking**: Azure CNI networking plugin
 - **Identity**: System-assigned managed identity (service principal clientId set to `msi` in ManagedCluster spec)
-- **Resource Ownership**: ASO ManagedCluster & AgentPools reference ResourceGroup created through ASO (`${CLUSTER_NAME}-rg`) – ensure location matches Terraform RG to avoid `InvalidResourceGroupLocation` errors.
+- **Resource Ownership**: ASO ManagedCluster & AgentPools reference the Azure Resource Group specified via `RESOURCE_GROUP_NAME` (legacy `${CLUSTER_NAME}-rg` pattern removed) – ensure location matches Terraform RG to avoid `InvalidResourceGroupLocation` errors.
 - **Readiness Flow**: Current `deploy.sh` waits only for the Cluster API `Cluster` `Available` condition (single wait). TODO: Extend to explicit ASO ResourceGroup & ManagedCluster readiness waits.
 
 ### 4. FluxCD GitOps (on AKS)
@@ -142,7 +142,7 @@ Tests provide clear PASS/FAIL indicators with detailed error messages for debugg
 
 Key configuration files you may need to customize:
 
-- **`.env`**: Environment variables (GitHub, Azure, sizing). If `RESOURCE_GROUP_NAME` is omitted, tests & scripts derive it from Terraform output (`resource_group_name`) or fall back to `${CLUSTER_NAME}-rg`.
+- **`.env`**: Environment variables (GitHub, Azure, sizing). If `RESOURCE_GROUP_NAME` is omitted, scripts derive it from Terraform output (`resource_group_name`). The old `${CLUSTER_NAME}-rg` fallback is deprecated.
 - **`terraform/terraform.tfvars`**: Azure infrastructure settings (resource group, location, service principal name).
 - **`cluster-api/workload/cluster.yaml`**: Parametric template consumed by `envsubst` → produces `cluster-generated.yaml`.
 - **`cluster-api/workload/cluster-generated.yaml`**: Generated (not committed) manifest actually applied.

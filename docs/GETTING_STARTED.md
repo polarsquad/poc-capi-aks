@@ -97,19 +97,15 @@ cd poc-capi-aks
 cp .env.example .env
 
 # Edit .env file with your values
-# Required: GITHUB_TOKEN, GITHUB_OWNER
-# Optional: Azure credentials (auto-populated from Terraform)
+# Required: GITHUB_TOKEN, GITHUB_OWNER, ARM_SUBSCRIPTION_ID
+# Other environment variable values are optional to change
 vim .env
 ```
 
 **Key environment variables to configure:**
 - `GITHUB_TOKEN`: Your GitHub personal access token (required scopes: repo, admin:repo_hook, admin:public_key)
 - `GITHUB_OWNER`: Your GitHub username or organization
-- `GITHUB_REPO`: Repository name (default: poc-capi-aks)
-- `AZURE_LOCATION`: Azure region (default: swedencentral)
-- `KUBERNETES_VERSION`: K8s version (default: 1.33.2)
-
-Azure credentials (subscription ID, tenant ID, client ID/secret) will be automatically populated from Terraform outputs.
+- `ARM_SUBSCRIPTION_ID`: Your Azure Subscription ID (the rest of the Azure credentials (subscription ID, tenant ID, client ID/secret) will be automatically populated from Terraform outputs)
 
 ### Step 2: Configure Terraform Variables
 
@@ -129,8 +125,8 @@ service_principal_name     = "aks-workload-cluster-sp"
 ```
 
 Notes:
-- The CAPI/ASO cluster manifest uses `${CLUSTER_NAME}-rg` as the owner ResourceGroup name. Tests & scripts now derive the *actual* Azure RG from Terraform outputs first.
-- If you prefer a unified name, set `CLUSTER_NAME="aks-workload-cluster"` so `${CLUSTER_NAME}-rg` equals Terraform's RG name. Otherwise, the difference is harmless provided both exist.
+- The cluster manifest now uses `RESOURCE_GROUP_NAME` directly for ownership (legacy `${CLUSTER_NAME}-rg` pattern removed).
+- Scripts/tests derive `RESOURCE_GROUP_NAME` from Terraform outputs if not explicitly exported.
 
 ### Step 3: Run Automated Setup
 
@@ -540,7 +536,7 @@ Scripts & tests resolve names in this precedence order:
 1. Terraform outputs (`terraform -chdir=terraform output -raw <name>`) 
 2. `terraform.tfvars` parsing
 3. Environment variables (`RESOURCE_GROUP_NAME`, `SERVICE_PRINCIPAL_NAME`)
-4. Conventions (`${CLUSTER_NAME}-rg`, default SP name)
+4. Conventions (default SP name only; legacy `${CLUSTER_NAME}-rg` removed)
 
 Set `STRICT_RG_LOCATION=1` to fail (instead of warn) on resource group location mismatch in tests.
 
