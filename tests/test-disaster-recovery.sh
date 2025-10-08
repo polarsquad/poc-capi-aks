@@ -1,6 +1,26 @@
 #!/bin/bash
 # Test Script: test-disaster-recovery.sh
-WORKLOAD_CLUSTER_NAME="${CLUSTER_NAME}"
+set -euo pipefail
+
+# Source env if not already
+if [ -z "${CLUSTER_NAME:-}" ] && [ -f ./.env ]; then
+    # shellcheck disable=SC1091
+    source ./.env
+fi
+
+CLUSTER_NAME=${CLUSTER_NAME:-aks-workload-cluster}
+WORKLOAD_CLUSTER_NAME="$CLUSTER_NAME"
+
+# Derive Resource Group (reuse logic from other tests)
+if command -v terraform >/dev/null 2>&1 && [ -f "terraform/terraform.tfstate" ]; then
+    TF_RG_NAME=$(terraform -chdir=terraform output -raw resource_group_name 2>/dev/null || true)
+fi
+if [ -z "${TF_RG_NAME:-}" ] && [ -f "terraform/terraform.tfvars" ]; then
+    TF_RG_NAME=$(grep -E '^resource_group_name\s*=' terraform/terraform.tfvars | head -n1 | awk -F'=' '{gsub(/"| /, "", $2); print $2}')
+fi
+RESOURCE_GROUP_NAME=${RESOURCE_GROUP_NAME:-${TF_RG_NAME:-${CLUSTER_NAME}-rg}}
+
+echo "Using RESOURCE_GROUP_NAME=$RESOURCE_GROUP_NAME"
 
 echo "Testing disaster recovery scenario..."
 echo "⚠️  WARNING: This will delete and recreate the cluster!"
@@ -16,12 +36,18 @@ echo "Starting disaster recovery test..."
 
 # Backup current cluster info
 echo "Backing up cluster information..."
+RG_ID_BEFORE=$(az group show --name "$RESOURCE_GROUP_NAME" --query id -o tsv 2>/dev/null || true)
+if [ -n "$RG_ID_BEFORE" ]; then
+    echo "Recorded existing Resource Group ID: $RG_ID_BEFORE"
+else
+    echo "WARN: Resource Group $RESOURCE_GROUP_NAME not found before test (will continue)."
+fi
 kubectl get cluster $WORKLOAD_CLUSTER_NAME -o yaml > cluster-backup.yaml
 kubectl get azuremanagedcluster $WORKLOAD_CLUSTER_NAME -o yaml > azuremanagedcluster-backup.yaml
 kubectl get azuremanagedcontrolplane $WORKLOAD_CLUSTER_NAME -o yaml > azuremanagedcontrolplane-backup.yaml
 
 # Delete cluster (in test environment only)
-echo "Deleting cluster resources..."
+echo "Deleting cluster resources (Cluster only, RG should persist)..."
 kubectl delete cluster $WORKLOAD_CLUSTER_NAME --wait=false
 
 # Wait for deletion to start
@@ -37,19 +63,36 @@ done
 echo "Cluster deleted successfully"
 
 # Wait additional time for Azure resources to clean up
-echo "Waiting for Azure resources to clean up..."
-sleep 300
+echo "Waiting briefly for Cluster API finalizers to reconcile (not deleting RG)..."
+sleep 120
 
 # Recreate cluster from manifests
-echo "Recreating cluster from manifests..."
+echo "Recreating cluster from manifests (ensuring RG reuse)..."
+if [ ! -f cluster-api/workload/cluster-generated.yaml ]; then
+    echo "Regenerating manifest via envsubst..."
+    envsubst < cluster-api/workload/cluster.yaml > cluster-api/workload/cluster-generated.yaml
+fi
 kubectl apply -f cluster-api/workload/cluster-generated.yaml
+
+# Verify RG still exists (reuse)
+RG_ID_AFTER=$(az group show --name "$RESOURCE_GROUP_NAME" --query id -o tsv 2>/dev/null || true)
+if [ -z "$RG_ID_AFTER" ]; then
+    echo "FAIL: Resource Group $RESOURCE_GROUP_NAME was removed unexpectedly during disaster recovery"
+    exit 1
+fi
+if [ -n "$RG_ID_BEFORE" ] && [ "$RG_ID_BEFORE" != "$RG_ID_AFTER" ]; then
+    echo "FAIL: Resource Group was recreated (ID changed) expected reuse"
+    exit 1
+fi
+echo "PASS: Resource Group reused successfully (ID: $RG_ID_AFTER)"
 
 # Wait for provisioning
 echo "Waiting for cluster provisioning (this may take 15-20 minutes)..."
-kubectl wait --for=condition=Ready cluster/$WORKLOAD_CLUSTER_NAME --timeout=1200s
+kubectl wait --for=condition=Ready cluster/$WORKLOAD_CLUSTER_NAME --timeout=1200s || CLUSTER_WAIT_RC=$?
+CLUSTER_WAIT_RC=${CLUSTER_WAIT_RC:-0}
 KUBECTL_EXIT_CODE=$?
 
-if [ $KUBECTL_EXIT_CODE -eq 0 ]; then
+if [ ${CLUSTER_WAIT_RC:-$KUBECTL_EXIT_CODE} -eq 0 ]; then
     echo "✅ Cluster reprovisioned successfully"
 else
     echo "❌ Cluster provisioning failed"
@@ -62,11 +105,32 @@ clusterctl get kubeconfig $WORKLOAD_CLUSTER_NAME > ${WORKLOAD_CLUSTER_NAME}-rest
 
 # Verify cluster and applications are restored
 echo "Verifying cluster functionality..."
-./tests/test-aks-provisioning.sh && \
-./tests/test-flux-installation.sh && \
-./tests/test-sample-app.sh
+./tests/test-aks-provisioning.sh || DR_FAIL=1
+./tests/test-flux-installation.sh || DR_FAIL=1
+./tests/test-sample-app.sh || DR_FAIL=1
 
-if [ $? -eq 0 ]; then
+# Ownership / ASO resource validation
+echo "Validating ASO ownership references..."
+MANAGED_CLUSTER_NS=default
+OWNER_RG_REF=$(kubectl get managedcluster.containerservice.azure.com "$WORKLOAD_CLUSTER_NAME" -n $MANAGED_CLUSTER_NS -o jsonpath='{.spec.owner.name}' 2>/dev/null || true)
+if [ "$OWNER_RG_REF" != "$RESOURCE_GROUP_NAME" ]; then
+    echo "FAIL: ManagedCluster owner name ($OWNER_RG_REF) does not match RESOURCE_GROUP_NAME ($RESOURCE_GROUP_NAME)"
+    DR_FAIL=1
+else
+    echo "PASS: ManagedCluster owner matches expected resource group"
+fi
+
+for pool in pool0 pool1; do
+    OWNER_REF=$(kubectl get managedclustersagentpool.containerservice.azure.com ${WORKLOAD_CLUSTER_NAME}-$pool -n $MANAGED_CLUSTER_NS -o jsonpath='{.spec.owner.name}' 2>/dev/null || true)
+    if [ "$OWNER_REF" != "$RESOURCE_GROUP_NAME" ]; then
+        echo "FAIL: AgentPool $pool owner ($OWNER_REF) != $RESOURCE_GROUP_NAME"
+        DR_FAIL=1
+    else
+        echo "PASS: AgentPool $pool owner matches resource group"
+    fi
+done
+
+if [ -z "${DR_FAIL:-}" ]; then
     echo "🎉 Disaster recovery successful!"
     echo "Cluster and applications restored successfully"
 else
