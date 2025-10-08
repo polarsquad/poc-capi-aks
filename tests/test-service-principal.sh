@@ -1,6 +1,19 @@
 #!/bin/bash
 # Test Script: test-service-principal.sh
-SP_NAME="aks-cluster-sp"
+
+# Derive Service Principal name from Terraform output if available, otherwise fall back.
+if command -v terraform >/dev/null 2>&1 && [ -f "terraform/terraform.tfstate" ]; then
+    TF_SP_NAME=$(terraform -chdir=terraform output -raw service_principal_name 2>/dev/null || true)
+fi
+
+# Fallback: parse terraform.tfvars (simple grep) if not obtained above
+if [ -z "$TF_SP_NAME" ] && [ -f "terraform/terraform.tfvars" ]; then
+    TF_SP_NAME=$(grep -E '^service_principal_name\s*=' terraform/terraform.tfvars | head -n1 | awk -F'=' '{gsub(/"| /, "", $2); print $2}')
+fi
+
+# Final fallback: environment variable or default
+SP_NAME="${TF_SP_NAME:-${SERVICE_PRINCIPAL_NAME:-aks-workload-cluster-sp}}"
+echo "Using Service Principal name: $SP_NAME"
 
 echo "Testing Service Principal and RBAC..."
 

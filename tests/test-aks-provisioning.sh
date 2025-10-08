@@ -1,7 +1,21 @@
 #!/bin/bash
 # Test Script: test-aks-provisioning.sh
 WORKLOAD_CLUSTER_NAME="${CLUSTER_NAME}"
-RG_NAME="${CLUSTER_NAME}-rg"
+
+# Derive Resource Group name from Terraform output if available
+if command -v terraform >/dev/null 2>&1 && [ -f "terraform/terraform.tfstate" ]; then
+    TF_RG_NAME=$(terraform -chdir=terraform output -raw resource_group_name 2>/dev/null || true)
+fi
+
+# Fallback: parse terraform.tfvars if not obtained above
+if [ -z "$TF_RG_NAME" ] && [ -f "terraform/terraform.tfvars" ]; then
+    TF_RG_NAME=$(grep -E '^resource_group_name\s*=' terraform/terraform.tfvars | head -n1 | awk -F'=' '{gsub(/"| /, "", $2); print $2}')
+fi
+
+# Final fallback: environment variable or naming convention
+RG_NAME="${TF_RG_NAME:-${RESOURCE_GROUP_NAME:-${CLUSTER_NAME}-rg}}"
+
+echo "Using Resource Group name: $RG_NAME"
 
 echo "Testing AKS Cluster Provisioning..."
 

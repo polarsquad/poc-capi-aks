@@ -28,13 +28,13 @@ variable "resource_group_name" {
 variable "location" {
   description = "Azure region"
   type        = string
-  default     = "eastus"
+  default     = "swedencentral"
 }
 
 variable "service_principal_name" {
   description = "Name of the service principal"
   type        = string
-  default     = "aks-cluster-sp"
+  default     = "aks-workload-cluster-sp"
 }
 
 # Data sources
@@ -112,4 +112,9 @@ output "tenant_id" {
 output "subscription_id" {
   description = "Azure subscription ID"
   value       = data.azurerm_client_config.current.subscription_id
+}
+
+output "service_principal_name" {
+  description = "Configured name of the service principal"
+  value       = var.service_principal_name
 }
