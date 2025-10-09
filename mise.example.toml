@@ -1,0 +1,31 @@
+[tools]
+kubectl = "1.34"
+k9s = "latest"
+terraform = "1.13.3"
+azure = "2.77.0"
+kind = "latest"
+flux2 = "2.7.2"
+helm = "3"
+clusterctl = "1.11.2"
+
+[env]
+# GitHub Configuration for FluxCD
+GITHUB_TOKEN = "your-github-personal-access-token" # Your GitHub Personal Access Token with repo permissions
+GITHUB_OWNER = "owner-of-the-repo"  # Your GitHub owner (username or organization)
+GITHUB_REPO = "poc-capi-aks" # The name of your cloned GitHub repository name
+GITHUB_BRANCH = "main"
+
+# Required Azure Configuration
+ARM_SUBSCRIPTION_ID = "your-subscription-id"
+
+# Kind CAPI & CAPZ Management Variables (optional overrides)
+CAPI_CLUSTER_NAME = "capi-management"
+CAPI_VERSION = "v1.11.2" # Specify the CAPI version to use
+CAPZ_VERSION = "v1.21.0" # Specify the CAPZ version to use
+
+# Cluster Configuration (optional overrides)
+CLUSTER_NAME = "aks-workload-cluster"
+AZURE_LOCATION = "swedencentral"
+KUBERNETES_VERSION = "1.33.2"  # Specify the Kubernetes version you want to use
+AZURE_NODE_MACHINE_TYPE = "Standard_D2s_v3"  # Specify the Azure VM size for the nodes
+WORKER_MACHINE_COUNT = "2"  # Number of worker nodes in the cluster

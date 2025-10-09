@@ -15,11 +15,46 @@ Install the following tools on macOS (Homebrew shown) and ensure you are authent
 - git
 - clusterctl
 - flux
+### Recommended but not required
+- k9s 
+
+### This project uses Mise for tool installation
+For more information see https://mise.jdx.dev
+If your none of the below methods of installation cover your use-case, visit https://mise.jdx.dev/installing-mise.html
 
 ### Install (macOS/Homebrew)
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew update && brew install azure-cli kubectl helm kind terraform git fluxcd/tap/flux clusterctl
+# If using homebrew
+brew update && brew mise
+
+# The .mise.toml file defines all required tools and their versions:
+
+# Install all tools with: 
+mise install
+```
+
+### Install (Linux/macOS)
+```bash
+curl https://mise.run | sh
+
+# The .mise.toml file defines all required tools and their versions:
+
+# Install all tools with: 
+mise install
+```
+
+### Install (Windows)
+```bash
+# If using chocolatey
+choco install mise
+
+# Or if using winget
+winget install jdx.mise
+
+# The .mise.toml file defines all required tools and their versions:
+
+# Install all tools with: 
+mise install
 ```
 
 ### Accounts / Access
@@ -83,14 +118,15 @@ docker version
 git clone https://github.com/polarsquad/poc-capi-aks.git
 cd poc-capi-aks
 
-# Copy environment configuration
-cp .env.example .env
+# Update environment configuration
+cp mise.example.toml mise.toml && vim mise.toml
 
-# Edit .env file with your values
-# Required: GITHUB_TOKEN, GITHUB_OWNER, ARM_SUBSCRIPTION_ID
+# Edit the file with your values
+# Required to edit: GITHUB_TOKEN, GITHUB_OWNER, ARM_SUBSCRIPTION_ID
 # Other environment variable values are optional to change
-vim .env
 ```
+Mise should automatically load your edited mise.toml file environment variables. If this is not the case, confirm the missing variables with `printenv` then ensure the config is trusted with `mise trust mise.toml`
+If still missing, try `mise activate`, then `mise doctor` for more debugging information
 
 **Key environment variables to configure:**
 - `GITHUB_TOKEN`: Your GitHub personal access token (required scopes: repo, admin:repo_hook, admin:public_key)
@@ -100,11 +136,8 @@ vim .env
 ### Step 2: Configure Terraform Variables
 
 ```bash
-# Copy Terraform variables template
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-
-# Edit with your specific values
-vim terraform/terraform.tfvars
+# Copy Terraform variables template and edit values
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars && vim terraform/terraform.tfvars
 ```
 
 Example (adjust if desired; these defaults match the repository's Terraform variable defaults):
@@ -115,15 +148,10 @@ service_principal_name     = "aks-workload-cluster-sp"
 ```
 
 Notes:
-- The cluster manifest now uses `RESOURCE_GROUP_NAME` directly for ownership (legacy `${CLUSTER_NAME}-rg` pattern removed).
+- The cluster manifest now uses `RESOURCE_GROUP_NAME` directly for ownership.
 - Scripts/tests derive `RESOURCE_GROUP_NAME` from Terraform outputs if not explicitly exported.
 
 ### Step 3: Run Automated Setup
-
-```bash
-# First source the environment variables in your terminal
-source .env
-```
 
 ```bash
 # It's important to run the setup script from the repository's root directory

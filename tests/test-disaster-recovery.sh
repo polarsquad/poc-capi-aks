@@ -2,12 +2,6 @@
 # Test Script: test-disaster-recovery.sh
 set -euo pipefail
 
-# Source env if not already
-if [ -z "${CLUSTER_NAME:-}" ] && [ -f ./.env ]; then
-    # shellcheck disable=SC1091
-    source ./.env
-fi
-
 CLUSTER_NAME=${CLUSTER_NAME:-aks-workload-cluster}
 WORKLOAD_CLUSTER_NAME="$CLUSTER_NAME"
 

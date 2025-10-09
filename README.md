@@ -22,16 +22,24 @@ Before starting, ensure you have:
 - Required tools: `kubectl`, `helm`, `kind`, `clusterctl`, `flux`, `terraform`, `git`
 - GitHub Personal Access Token with `repo` permissions
 
+#### Use Mise to install the prerequsite tools
+Mise is a development environment management tool designed to simplify the handling of multiple programming languages and their associated tools. It acts as a front-end for managing development tools, environment variables, and tasks.
+In the [detailed guide](/docs/GETTING_STARTED.md#) for installation and step-by-step instructions.
+
+Once installed, use one simple command to install all necessary tools to your environment:
+```bash
+mise install
+```
+
 ### 1. Configure Environment
 
 ```bash
 # Copy and edit the environment file
-cp .env.example .env
-# Edit .env with your values:
-# - GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO
-# - Azure credentials will be populated from Terraform
+cp mise.example.toml mise.toml && vim mise.toml
 
-source .env
+# Update the file with your values for:
+# - GITHUB_TOKEN, GITHUB_OWNER, ARM_SUBSCRIPTION_ID
+# - The rest of the Azure credentials will be populated from Terraform
 ```
 
 ### 2. Run Complete Setup
