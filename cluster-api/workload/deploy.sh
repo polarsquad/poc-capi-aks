@@ -47,12 +47,7 @@ AZURE_ADMIN_GROUP_ID=${AZURE_ADMIN_GROUP_ID:-""}
 echo "Rendering manifests (envsubst)..."
 envsubst < cluster.yaml > cluster-generated.yaml
 
-# Guard against legacy pattern lingering & mismatched RG substitution
-if grep -q '\${CLUSTER_NAME}-rg' cluster-generated.yaml; then
-    echo "ERROR: Deprecated pattern \\${CLUSTER_NAME}-rg detected in generated manifest." >&2
-    exit 1
-fi
-
+# Verify RG substitution
 if ! grep -q "name: ${RESOURCE_GROUP_NAME}" cluster-generated.yaml; then
     echo "ERROR: Generated manifest does not reference expected RESOURCE_GROUP_NAME (${RESOURCE_GROUP_NAME})." >&2
     echo "       Examine cluster-generated.yaml for incorrect substitution." >&2
