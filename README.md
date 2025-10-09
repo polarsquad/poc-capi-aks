@@ -56,9 +56,10 @@ This will:
 The solution creates a multi-layered infrastructure:
 
 ### 1. Azure Infrastructure (via Terraform)
-- **Resource Group**: `aks-workload-cluster-rg` (configurable location: swedencentral/eastus)
+- **Resource Group**: Name and location configured in terraform.tfvars
+- **ARM SubscriptionID**: Required by Terraform provider, supplied as an environment variable
 - **Service Principal**: For ClusterAPI authentication with Azure
-- **Subscription/Tenant Configuration**: Automatically detected from Azure CLI
+- **Tenant Configuration**: Automatically detected from Azure CLI
 
 ### 2. ClusterAPI Management Cluster (Kind)
 - **Local Kubernetes v1.34.0**: Running in Docker via Kind
@@ -78,7 +79,7 @@ The solution creates a multi-layered infrastructure:
   - `pool1`: User node pool (same sizing by default)
 - **Networking**: Azure CNI networking plugin
 - **Identity**: System-assigned managed identity (service principal clientId set to `msi` in ManagedCluster spec)
-- **Resource Ownership**: ASO ManagedCluster & AgentPools reference the Azure Resource Group specified via `RESOURCE_GROUP_NAME` (legacy `${CLUSTER_NAME}-rg` pattern removed) – ensure location matches Terraform RG to avoid `InvalidResourceGroupLocation` errors.
+- **Resource Ownership**: ASO ManagedCluster & AgentPools reference the Azure Resource Group specified via `RESOURCE_GROUP_NAME` – ensure location matches Terraform RG to avoid `InvalidResourceGroupLocation` errors.
 - **Readiness Flow**: Current `deploy.sh` waits only for the Cluster API `Cluster` `Available` condition (single wait). TODO: Extend to explicit ASO ResourceGroup & ManagedCluster readiness waits.
 
 ### 4. FluxCD GitOps (on AKS)
@@ -87,6 +88,11 @@ The solution creates a multi-layered infrastructure:
 - **Infrastructure Components**: Ingress controllers, monitoring, etc.
 - **Application Deployment**: Automated from Git commits
 - **Template Note**: Flux configuration template processing in `bootstrap-flux.sh` is currently commented out; enable it if you reintroduce variable placeholders in Flux manifests.
+
+![AKS GitOps Architecture](./azure_gitops_aks_cluster.png)
+
+*Figure: End-to-end Azure AKS GitOps architecture showing Terraform-provisioned Azure resources, ClusterAPI (Kind + CAPZ + ASO) management layer, the AKS workload cluster, and Flux-driven reconciliation of infrastructure and application manifests.*
+
 
 ## Project Structure
 
@@ -133,7 +139,7 @@ chmod +x tests/*.sh
 ```
 
 ### Naming Resolution Note
-Test scripts now dynamically derive key Azure identifiers (Service Principal name and Resource Group name) from Terraform outputs first, then fall back to `terraform.tfvars`, then environment variables, and finally conventions (e.g. `${CLUSTER_NAME}-rg`). This minimizes drift. To enforce a strict resource group location match, export `STRICT_RG_LOCATION=1` before running tests; otherwise a location mismatch will emit a warning instead of failing.
+Test scripts now dynamically derive key Azure identifiers (Service Principal name and Resource Group name) from Terraform outputs first, then fall back to `terraform.tfvars`, then environment variables, and finally conventions. This minimizes drift. To enforce a strict resource group location match, export `STRICT_RG_LOCATION=1` before running tests; otherwise a location mismatch will emit a warning instead of failing.
 
 ### Test Output
 Tests provide clear PASS/FAIL indicators with detailed error messages for debugging.
