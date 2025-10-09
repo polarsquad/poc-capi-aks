@@ -19,9 +19,7 @@ Install the following tools on macOS (Homebrew shown) and ensure you are authent
 ### Install (macOS/Homebrew)
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install azure-cli kubectl helm kind terraform git fluxcd/tap/flux
-# clusterctl is distributed via cluster-api release tarballs; or
-brew install clusterctl
+brew update && brew install azure-cli kubectl helm kind terraform git fluxcd/tap/flux clusterctl
 ```
 
 ### Accounts / Access
@@ -44,14 +42,6 @@ brew install clusterctl
    - `azure-cluster-identity-secret`: minimal (clientSecret)
    - `azure-cluster-identity`: full credential set (subscription / tenant / client IDs + secret)
 
-Install the following tools on your macOS system:
-
-```bash
-# Install Homebrew if not already installed
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install required tools
-brew install azure-cli kubectl helm kind terraform git clusterctl fluxcd/tap/flux
 ```
 ### 1. Azure Setup
 
@@ -280,22 +270,20 @@ cd ../..
 - **Sample App**: nginx:1.29.2 deployment (2 replicas)
 - **Infrastructure**: NGINX Ingress Controller (LoadBalancer)
 
+![AKS Bootstrap & GitOps Architecture](../aks_bootstrap_architecture.png)
+
+*Figure: High-level bootstrap and GitOps flow from Terraform provisioning through ClusterAPI/CAPZ/ASO to Flux-managed workloads.*
+
 ## Next Steps
 
 After successful setup:
 
-1. **Clone your GitOps repository:**
-   ```bash
-   git clone https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}
-   cd ${GITHUB_REPO}
-   ```
-
-2. **Add your applications:**
+1. **Add your applications:**
    - Create manifests in `apps/` directory
    - Update `apps/kustomization.yaml`
    - Commit and push changes
 
-3. **Monitor deployments:**
+2. **Monitor deployments:**
    ```bash
    # Watch Flux sync status
    watch flux get all
@@ -644,3 +632,4 @@ location = "westeurope"
 ```
 
 **Important:** Ensure both files use the same location to avoid resource group mismatch errors.
+
