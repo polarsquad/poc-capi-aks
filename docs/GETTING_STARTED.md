@@ -100,7 +100,7 @@ Create a GitHub personal access token with proper scopes:
   - ✅ `repo` (Full control of private repositories)
   - ✅ `admin:repo_hook` (Full control of repository hooks)
   - ✅ `admin:public_key` (Full control of user public keys) - for deploy keys
-- Save the token securely - you'll need it for the `.env` file
+- Save the token securely - you'll need it for the `mise.toml` file
 
 ### 3. Docker Desktop
 
@@ -200,9 +200,6 @@ cd ..
 ### 2. ClusterAPI Management Cluster
 
 ```bash
-# Source environment variables
-source .env
-
 # Bootstrap management cluster (creates Kind cluster, installs ClusterAPI + CAPZ)
 cd cluster-api/management
 chmod +x bootstrap.sh
@@ -342,7 +339,7 @@ After successful setup:
    # Solution: Delete existing resource group
    az group delete --name aks-workload-cluster-rg --yes --no-wait
    
-   # Update .env with correct AZURE_LOCATION
+   # Update mise.toml with correct AZURE_LOCATION
    # Rerun setup
    ```
 
@@ -396,8 +393,7 @@ After successful setup:
    # Your token needs proper scopes: repo, admin:repo_hook, admin:public_key
    
    # Create new token with correct scopes
-   # Update GITHUB_TOKEN in .env
-   source .env
+   # Update GITHUB_TOKEN in mise.toml
    
    # Retry FluxCD bootstrap
    ./flux-config/bootstrap-flux.sh
@@ -414,8 +410,7 @@ After successful setup:
    ```bash
    # If you see ${CLUSTER_NAME} in applied resources
    # Ensure environment variables are exported
-   source .env
-   env | grep CLUSTER_NAME
+   printenv | grep CLUSTER_NAME
    
    # The deploy.sh uses envsubst for variable substitution
    # Check cluster-generated.yaml for substituted values
@@ -538,7 +533,7 @@ Kind Management Cluster (capi-management)
 ```
 
 ### Key Files and Their Purpose
-- **`.env`**: Environment variables (optionally omit RESOURCE_GROUP_NAME & SERVICE_PRINCIPAL_NAME—tests derive from Terraform outputs)
+- **`mise.toml`**: Environment variables (optionally omit RESOURCE_GROUP_NAME & SERVICE_PRINCIPAL_NAME—tests derive from Terraform outputs)
 - **`terraform/terraform.tfvars`**: Authoritative Azure RG / location / service principal names
 - **`cluster-api/workload/cluster.yaml`**: Template; rendered by `envsubst` → `cluster-generated.yaml`
 - **`cluster-api/workload/cluster-generated.yaml`**: Applied manifest (transient)
@@ -552,7 +547,7 @@ Scripts & tests resolve names in this precedence order:
 1. Terraform outputs (`terraform -chdir=terraform output -raw <name>`) 
 2. `terraform.tfvars` parsing
 3. Environment variables (`RESOURCE_GROUP_NAME`, `SERVICE_PRINCIPAL_NAME`)
-4. Conventions (default SP name only; legacy `${CLUSTER_NAME}-rg` removed)
+4. Conventions (default SP name only)
 
 Set `STRICT_RG_LOCATION=1` to fail (instead of warn) on resource group location mismatch in tests.
 
@@ -593,16 +588,13 @@ The `bootstrap-flux.sh` script has commented envsubst logic. If you introduce va
    ./cluster-api/management/setup-azure-credentials.sh
    ```
 
-2. **Secure your `.env` file:**
+2. **Secure your `mise.toml` file:**
    ```bash
-   # Never commit .env to Git
-   # .gitignore should include .env
+   # Never commit mise.toml to Git
+   # .gitignore should include mise.toml
    
    # Use restrictive permissions
-   chmod 600 .env
-   
-   # Consider using environment-specific files
-   # .env.dev, .env.staging, .env.prod
+   chmod 640 mise.toml
    ```
 
 3. **GitHub token security:**
@@ -634,7 +626,7 @@ The `bootstrap-flux.sh` script has commented envsubst logic. If you introduce va
 ## Advanced Configuration
 
 ### Changing Kubernetes Version
-Edit `.env`:
+Edit `mise.toml`:
 ```bash
 export KUBERNETES_VERSION="1.33.2"  # or another supported version
 ```
@@ -643,17 +635,17 @@ export KUBERNETES_VERSION="1.33.2"  # or another supported version
 Edit `cluster-api/workload/cluster.yaml` and add another MachinePool and AzureASOManagedMachinePool section.
 
 ### Changing Node Pool Size
-Edit `.env`:
+Edit `mise.toml`:
 ```bash
 export WORKER_MACHINE_COUNT=3  # Number of nodes per pool
 export AZURE_NODE_MACHINE_TYPE="Standard_D4s_v3"  # Larger VM size
 ```
 
 ### Custom Location
-Edit both `.env` and `terraform/terraform.tfvars` to use the same location:
+Edit both `mise.toml` and `terraform/terraform.tfvars` to use the same location:
 ```bash
-# .env
-export AZURE_LOCATION="westeurope"
+# mise.toml
+AZURE_LOCATION = "westeurope"
 
 # terraform.tfvars
 location = "westeurope"

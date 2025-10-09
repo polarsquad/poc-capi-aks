@@ -12,7 +12,7 @@ if [ -z "$TF_RG_NAME" ] && [ -f "terraform/terraform.tfvars" ]; then
 fi
 
 # Final fallbacks: environment variable or naming convention
-RG_NAME="${TF_RG_NAME:-${RESOURCE_GROUP_NAME:-${CLUSTER_NAME}-rg}}"
+RG_NAME="${TF_RG_NAME:-${RESOURCE_GROUP_NAME}}"
 LOCATION="${AZURE_LOCATION}"
 
 echo "Using Resource Group name: $RG_NAME"

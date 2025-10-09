@@ -156,7 +156,7 @@ Tests provide clear PASS/FAIL indicators with detailed error messages for debugg
 
 Key configuration files you may need to customize:
 
-- **`.env`**: Environment variables (GitHub, Azure, sizing). If `RESOURCE_GROUP_NAME` is omitted, scripts derive it from Terraform output (`resource_group_name`). The old `${CLUSTER_NAME}-rg` fallback is deprecated.
+- **`mise.toml`**: Environment variables (GitHub, Azure, sizing).
 - **`terraform/terraform.tfvars`**: Azure infrastructure settings (resource group, location, service principal name).
 - **`cluster-api/workload/cluster.yaml`**: Parametric template consumed by `envsubst` → produces `cluster-generated.yaml`.
 - **`cluster-api/workload/cluster-generated.yaml`**: Generated (not committed) manifest actually applied.
@@ -164,7 +164,7 @@ Key configuration files you may need to customize:
 - **`flux-config/clusters/aks-workload-cluster.yaml`** (or generated variant): FluxCD GitOps configuration root.
 - **`azure-credentials.env`**: Generated after credentials setup; sourced by workload deploy.
 
-## Important Environment Variables
+## Important Environment Variables in mise.toml
 
 ```bash
 # GitHub (Required)
@@ -173,14 +173,10 @@ GITHUB_OWNER="your-github-username"
 GITHUB_REPO="poc-capi-aks"
 
 # Azure (Auto-populated from Terraform)
-AZURE_SUBSCRIPTION_ID
-AZURE_TENANT_ID
-AZURE_CLIENT_ID
-AZURE_CLIENT_SECRET
+ARM_SUBSCRIPTION_ID="your-azure-subscription-id"
 
 # Cluster Configuration
 CLUSTER_NAME="aks-workload-cluster"
-RESOURCE_GROUP_NAME="aks-workload-cluster-rg"
 AZURE_LOCATION="swedencentral"
 KUBERNETES_VERSION="1.33.2"
 AZURE_NODE_MACHINE_TYPE="Standard_D2s_v3"
@@ -222,7 +218,7 @@ CAPZ_VERSION="v1.21.0"
 
 **2. Azure Resource Group location mismatch**
 - Delete existing resource group: `az group delete --name aks-workload-cluster-rg --yes`
-- Update `.env` with correct `AZURE_LOCATION`
+- Update `mise.toml` with correct `AZURE_LOCATION`
 - Rerun setup
 
 **3. ClusterAPI webhook timeouts**
@@ -266,21 +262,18 @@ terraform plan
 terraform apply
 cd ..
 
-# 2. Load environment
-source .env
-
-# 3. Management Cluster
+# 2. Management Cluster
 cd cluster-api/management
 ./bootstrap.sh
 ./setup-azure-credentials.sh
 cd ../..
 
-# 4. Workload Cluster
+# 3. Workload Cluster
 cd cluster-api/workload
 ./deploy.sh
 cd ../..
 
-# 5. FluxCD
+# 4. FluxCD
 cd flux-config
 ./bootstrap-flux.sh
 cd ..
