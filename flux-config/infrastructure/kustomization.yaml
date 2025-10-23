@@ -3,3 +3,6 @@ kind: Kustomization
 
 resources:
   - ingress-nginx.yaml
+  - terraform-controller/helmrepository.yaml
+  - terraform-controller/helmrelease.yaml
+  - terraform-controller/terraform.yaml

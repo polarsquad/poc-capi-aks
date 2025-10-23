@@ -1,0 +1,51 @@
+apiVersion: tf.weave.works/v1alpha1
+kind: Terraform
+metadata:
+  name: aks-infra
+  namespace: flux-system
+spec:
+  approvePlan: auto
+  interval: 15m
+  path: ./terraform
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  varsFrom:
+    - kind: Secret
+      name: azure-cluster-identity
+  writeOutputsToSecret:
+    name: terraform-outputs
+  # Local backend (default) - using repo working dir state
+  runnerPodTemplate:
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: terraform
+          env:
+            - name: ARM_SUBSCRIPTION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: azure-cluster-identity
+                  key: subscriptionID
+            - name: ARM_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: azure-cluster-identity
+                  key: tenantID
+            - name: ARM_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: azure-cluster-identity
+                  key: clientID
+            - name: ARM_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: azure-cluster-identity-secret
+                  key: clientSecret
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
