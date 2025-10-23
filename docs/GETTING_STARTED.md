@@ -299,6 +299,32 @@ cd ../..
 
 *Figure: High-level bootstrap and GitOps flow from Terraform provisioning through ClusterAPI/CAPZ/ASO to Flux-managed workloads.*
 
+### Terraform Controller (GitOps Terraform Execution)
+This repository now leverages the Terraform Controller (installed via Flux HelmRelease) to run Terraform inside the management cluster:
+
+1. `flux-config/infrastructure/terraform-controller/helmrepository.yaml` and `helmrelease.yaml` install the controller.
+2. `flux-config/infrastructure/terraform-controller/terraform.yaml` defines a `Terraform` CR (`aks-infra`) pointing to `./terraform`.
+3. The controller automatically plans and applies with `approvePlan: auto`.
+4. Azure credentials are sourced from existing secrets created during bootstrap (`azure-cluster-identity` & `azure-cluster-identity-secret`).
+5. Outputs are written to secret `terraform-outputs` (extend consumption as needed for dynamic manifests).
+
+Inspect Terraform run status:
+```bash
+kubectl get terraform -n flux-system
+kubectl describe terraform aks-infra -n flux-system
+kubectl logs -n flux-system deployment/tf-controller --tail=100
+```
+
+View outputs:
+```bash
+kubectl get secret terraform-outputs -n flux-system -o yaml
+```
+
+Development Notes:
+- Local state is used for simplicity; migrate to Azure Storage backend for production.
+- Changes to `terraform/` code trigger reconcile automatically after push.
+- If Azure credentials rotate, re-run `setup-azure-credentials.sh` then ensure secrets are updated before next apply cycle.
+
 ## Next Steps
 
 After successful setup:

@@ -101,6 +101,30 @@ The solution creates a multi-layered infrastructure:
 
 *Figure: End-to-end Azure AKS GitOps architecture showing Terraform-provisioned Azure resources, ClusterAPI (Kind + CAPZ + ASO) management layer, the AKS workload cluster, and Flux-driven reconciliation of infrastructure and application manifests.*
 
+### 5. Terraform Controller (GitOps Terraform Execution)
+Flux now installs the Terraform Controller which watches a `Terraform` Custom Resource referencing the `./terraform` directory in this repository:
+
+- The controller plans and applies changes automatically (`approvePlan: auto`).
+- Azure authentication is injected via existing secrets (`azure-cluster-identity` & `azure-cluster-identity-secret`).
+- State is kept local (within the controller runner pod) for simplicity; for production use a remote backend (Azure Storage) to avoid drift.
+- Outputs are written to a secret `terraform-outputs` that can be consumed by future Kustomizations (extend as needed).
+
+Ordering is enforced by Flux `dependsOn`: the `infrastructure` Kustomization applies the Terraform Controller + Terraform CR before the `apps` Kustomization reconciles.
+
+To inspect Terraform status:
+```bash
+kubectl get terraform -n flux-system
+kubectl describe terraform aks-infra -n flux-system
+kubectl logs -n flux-system deployment/tf-controller --tail=100
+```
+
+To view outputs (example):
+```bash
+kubectl get secret terraform-outputs -n flux-system -o yaml
+```
+
+If you change `terraform/` code and push, Flux will trigger a new plan/apply automatically.
+
 
 ## Project Structure
 

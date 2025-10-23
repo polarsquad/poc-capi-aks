@@ -1,10 +1,18 @@
 #!/bin/bash
-# Complete setup script for Azure AKS with ClusterAPI and FluxCD
+# Complete end-to-end setup script for Azure AKS via ClusterAPI + Flux GitOps + Terraform Controller
+#
+# Flow:
+#  1. Terraform creates Azure infra (RG, SP, etc.) locally.
+#  2. ClusterAPI management cluster bootstraps (includes Flux + Terraform Controller).
+#  3. Azure credentials secret injected for CAPZ / Terraform.
+#  4. Terraform Controller runs in cluster producing outputs secret.
+#  5. Workload AKS cluster manifests applied (consuming Terraform outputs via scripts today).
+#  6. Tests run.
 
-set -e
+set -euo pipefail
 
-echo "🚀 Azure AKS with ClusterAPI and FluxCD Setup"
-echo "=============================================="
+echo "🚀 Azure AKS GitOps Setup (ClusterAPI + Flux + Terraform Controller)"
+echo "===================================================================="
 
 # Colors for output
 RED='\033[0;31m'
@@ -71,10 +79,16 @@ if [ -z "$GITHUB_REPO" ]; then
     export GITHUB_REPO="poc-capi-aks"
 fi
 
-print_success "Environment variables configured"
+if [ -z "${CAPI_CLUSTER_NAME:-}" ]; then
+    print_warning "CAPI_CLUSTER_NAME not set; using default: capi-mgmt"
+    export CAPI_CLUSTER_NAME=capi-mgmt
+fi
+
+export BOOTSTRAP_MODE=${BOOTSTRAP_MODE:-auto}
+print_success "Environment variables configured (BOOTSTRAP_MODE=${BOOTSTRAP_MODE})"
 
 # Step 1: Azure Infrastructure
-print_step "1" "Setting up Azure infrastructure with Terraform"
+print_step "1" "Setting up Azure infrastructure with Terraform (local apply before GitOps)"
 
 cd terraform
 
@@ -85,7 +99,7 @@ if [ ! -f "terraform.tfvars" ]; then
     exit 1
 fi
 
-terraform init
+terraform init -input=false
 terraform plan
 read -p "Apply Terraform configuration? (y/N): " -n 1 -r
 echo
@@ -98,24 +112,95 @@ fi
 
 cd ..
 
-# Step 2: ClusterAPI Management Cluster
-print_step "2" "Setting up ClusterAPI management cluster"
+# Step 2: ClusterAPI Management Cluster (includes Flux + Terraform Controller bootstrap)
+print_step "2" "Bootstrapping ClusterAPI management cluster (includes Flux + Terraform Controller)"
 
 chmod +x cluster-api/management/bootstrap.sh
 ./cluster-api/management/bootstrap.sh
 
-print_success "ClusterAPI management cluster ready"
+print_success "ClusterAPI management cluster ready (Flux controllers installing)"
 
 # Step 3: Azure Credentials
-print_step "3" "Setting up Azure credentials for ClusterAPI"
+print_step "3" "Setting up Azure credentials (Secrets for CAPZ + Terraform Controller)"
 
 chmod +x cluster-api/management/setup-azure-credentials.sh
 ./cluster-api/management/setup-azure-credentials.sh
 
 print_success "Azure credentials configured"
 
-# Step 4: AKS Workload Cluster
-print_step "4" "Creating AKS workload cluster"
+print_step "4" "Waiting for Terraform Controller readiness and outputs"
+
+TF_NS=flux-system
+TF_NAME=aks-infra
+MAX_DEPLOY_WAIT=60
+DEPLOY_SLEEP=5
+
+echo "Checking terraform-controller deployment availability..."
+DEPLOY_ATTEMPTS=0
+until kubectl -n $TF_NS get deployment terraform-controller &>/dev/null; do
+    DEPLOY_ATTEMPTS=$((DEPLOY_ATTEMPTS+1))
+    if [ $DEPLOY_ATTEMPTS -ge $MAX_DEPLOY_WAIT ]; then
+        print_warning "terraform-controller deployment not detected; continuing (will rely on local Terraform outputs)"
+        break
+    fi
+    sleep $DEPLOY_SLEEP
+done
+
+if kubectl -n $TF_NS get deployment terraform-controller &>/dev/null; then
+    kubectl -n $TF_NS wait --for=condition=Available --timeout=300s deployment/terraform-controller || print_warning "terraform-controller not Available within timeout"
+fi
+
+echo "Waiting for Terraform CR '$TF_NAME' to exist..."
+CR_ATTEMPTS=0
+while [ $CR_ATTEMPTS -lt 30 ]; do
+    if kubectl get terraform $TF_NAME -n $TF_NS &>/dev/null; then
+        break
+    fi
+    CR_ATTEMPTS=$((CR_ATTEMPTS+1))
+    sleep 5
+done
+if ! kubectl get terraform $TF_NAME -n $TF_NS &>/dev/null; then
+    print_warning "Terraform CR $TF_NAME not found; proceeding without in-cluster Terraform apply"
+else
+    echo "Waiting for Terraform CR Ready condition..."
+    READY_ATTEMPTS=0
+    until [ $READY_ATTEMPTS -ge 30 ]; do
+        READY_STATUS=$(kubectl get terraform $TF_NAME -n $TF_NS -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
+        if [ "$READY_STATUS" = "True" ]; then
+            print_success "Terraform CR Ready"
+            break
+        fi
+        READY_ATTEMPTS=$((READY_ATTEMPTS+1))
+        sleep 10
+    done
+    if [ "$READY_STATUS" != "True" ]; then
+        print_warning "Terraform CR not Ready in allotted time; workload cluster will still be attempted"
+    fi
+fi
+
+echo "Checking for terraform-outputs secret..."
+OUTPUT_ATTEMPTS=0
+while [ $OUTPUT_ATTEMPTS -lt 40 ]; do
+    if kubectl get secret terraform-outputs -n $TF_NS &>/dev/null; then
+        print_success "terraform-outputs secret present"
+        break
+    fi
+    OUTPUT_ATTEMPTS=$((OUTPUT_ATTEMPTS+1))
+    sleep 5
+done
+if ! kubectl get secret terraform-outputs -n $TF_NS &>/dev/null; then
+    print_warning "terraform-outputs secret not found; using local Terraform state for workload provisioning"
+else
+    RG_NAME=$(kubectl get secret terraform-outputs -n $TF_NS -o jsonpath='{.data.resource_group_name}' 2>/dev/null | base64 -d || echo "")
+    if [ -n "$RG_NAME" ]; then
+        echo "Terraform output resource_group_name: $RG_NAME"
+    else
+        print_warning "resource_group_name key missing in terraform-outputs secret"
+    fi
+fi
+
+# Step 5: AKS Workload Cluster (after Terraform readiness checks)
+print_step "5" "Creating AKS workload cluster"
 
 cd cluster-api/workload
 chmod +x deploy.sh
@@ -124,13 +209,7 @@ cd ../..
 
 print_success "AKS workload cluster created"
 
-# Step 5: FluxCD Setup
-print_step "5" "Setting up FluxCD"
-
-chmod +x flux-config/bootstrap-flux.sh
-./flux-config/bootstrap-flux.sh
-
-print_success "FluxCD configured"
+# FluxCD bootstrap now occurs during management cluster bootstrap (Step 2)
 
 # Step 6: Run Tests
 print_step "6" "Running comprehensive tests"
@@ -149,16 +228,20 @@ echo ""
 echo "🎉 Setup Complete!"
 echo "=================="
 echo ""
-echo "Your Azure AKS cluster with ClusterAPI and FluxCD is ready!"
+echo "Your Azure AKS cluster with ClusterAPI, Flux GitOps, and Terraform Controller is ready!"
 echo ""
 echo "Next steps:"
 echo "1. Clone your GitOps repository: git clone https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}"
-echo "2. Add your applications to the apps/ directory"
-echo "3. Commit and push changes - Flux will automatically deploy them"
+echo "2. Add application manifests under flux-config/apps/ (or new directories)"
+echo "3. Commit and push changes - Flux will automatically reconcile"
+echo "4. Inspect Terraform CR: kubectl -n flux-system get terraform"
+echo "5. View Terraform outputs: kubectl -n flux-system get secret terraform-outputs -o yaml"
 echo ""
 echo "Useful commands:"
 echo "- Access workload cluster: export KUBECONFIG=cluster-api/workload/aks-workload-cluster.kubeconfig"
 echo "- Check Flux status: flux get all"
+echo "- Check Terraform Controller: kubectl -n flux-system get pods | grep terraform-controller"
+echo "- View infrastructure Kustomization status: flux -n flux-system get kustomizations infrastructure"
 echo "- Run tests: ./tests/test-e2e-system.sh"
 echo ""
-echo "Documentation: ./docs/README.md"
+echo "Documentation: ./README.md and ./docs/GETTING_STARTED.md"
