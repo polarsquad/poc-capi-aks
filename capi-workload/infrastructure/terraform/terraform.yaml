@@ -18,13 +18,6 @@ spec:
   writeOutputsToSecret:
     name: terraform-outputs
   serviceAccountName: default
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 250m
-      memory: 256Mi
       # containers:
       #   - name: terraform
       #     env:
