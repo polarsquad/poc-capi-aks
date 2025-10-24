@@ -14,6 +14,7 @@ spec:
   varsFrom:
     - kind: Secret
       name: azure-cluster-identity
+      namespace: flux-system
       varsKeys:
         - subscriptionID:TF_VAR_subscription_id
         - tenantID:TF_VAR_tenant_id
