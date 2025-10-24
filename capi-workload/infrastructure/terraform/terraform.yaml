@@ -16,13 +16,13 @@ spec:
       name: azure-cluster-identity
       namespace: flux-system
       varsKeys:
-        - subscriptionID:TF_VAR_arm_subscription_id
-        - tenantID:TF_VAR_arm_tenant_id
-        - clientID:TF_VAR_arm_client_id
-        - clientSecret:TF_VAR_arm_client_secret
-        - location:TF_VAR_azure_location
-        - resourceGroupName:TF_VAR_azure_resource_group_name
-        - servicePrincipalName:TF_VAR_azure_service_principal_name
+        - subscriptionID:arm_subscription_id
+        - tenantID:arm_tenant_id
+        - clientID:arm_client_id
+        - clientSecret:arm_client_secret
+        - location:azure_location
+        - resourceGroupName:azure_resource_group_name
+        - servicePrincipalName:azure_service_principal_name
   # Terraform outputs will be written to the specified Kubernetes Secret,
   # allowing other resources to consume these outputs as needed.
   writeOutputsToSecret:
