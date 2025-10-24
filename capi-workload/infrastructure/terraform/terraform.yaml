@@ -14,30 +14,14 @@ spec:
   varsFrom:
     - kind: Secret
       name: azure-cluster-identity
-      #     varsKeys:
-      #       - subscriptionID:ARM_SUBSCRIPTION_ID
-      #       - tenantID:ARM_TENANT_ID
-      #       - clientID:ARM_CLIENT_ID
-      #       - name: ARM_CLIENT_SECRET
-      #         valueFrom:
-      #           secretKeyRef:
-      #             name: azure-cluster-identity-secret
-      #             key: clientSecret
-      #       - name: AZURE_LOCATION
-      #         valueFrom:
-      #           secretKeyRef:
-      #             name: azure-cluster-identity-secret
-      #             key: location
-      #       - name: AZURE_RESOURCE_GROUP_NAME
-      #         valueFrom:
-      #           secretKeyRef:
-      #             name: azure-cluster-identity-secret
-      #             key: resourceGroupName
-      #       - name: AZURE_SERVICE_PRINCIPAL_NAME
-      #         valueFrom:
-      #           secretKeyRef:
-      #             name: azure-cluster-identity-secret
-      #             key: servicePrincipalName
+      varsKeys:
+        - subscriptionID:ARM_SUBSCRIPTION_ID
+        - tenantID:ARM_TENANT_ID
+        - clientID:ARM_CLIENT_ID
+        - clientSecret:ARM_CLIENT_SECRET
+        - location:AZURE_LOCATION
+        - resourceGroupName:AZURE_RESOURCE_GROUP_NAME
+        - servicePrincipalName:AZURE_SERVICE_PRINCIPAL_NAME
   # Terraform outputs will be written to the specified Kubernetes Secret,
   # allowing other resources to consume these outputs as needed.
   writeOutputsToSecret:
