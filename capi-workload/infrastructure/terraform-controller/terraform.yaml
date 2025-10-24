@@ -42,6 +42,21 @@ spec:
                 secretKeyRef:
                   name: azure-cluster-identity-secret
                   key: clientSecret
+            - name: AZURE_LOCATION
+              valueFrom:
+                secretKeyRef:
+                  name: azure-cluster-identity-secret
+                  key: location
+            - name: AZURE_RESOURCE_GROUP_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: azure-cluster-identity-secret
+                  key: resourceGroupName
+            - name: AZURE_SERVICE_PRINCIPAL_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: azure-cluster-identity-secret
+                  key: servicePrincipalName
           resources:
             limits:
               cpu: 500m

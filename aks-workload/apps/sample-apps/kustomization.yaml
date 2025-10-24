@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: default
 
 resources:
+  - ingress-nginx.yaml
   - deployment.yaml
 
 commonLabels:

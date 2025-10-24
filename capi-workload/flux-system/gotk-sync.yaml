@@ -8,10 +8,8 @@ metadata:
 spec:
   interval: 1m0s
   ref:
-    branch: main
-  secretRef:
-    name: flux-system
-  url: ssh://git@github.com/polarsquad/poc-capi-aks
+    branch: fluxcd-time
+  url: https://github.com/polarsquad/poc-capi-aks
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -20,7 +18,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./flux-config/clusters
+  path: ./capi-workload
   prune: true
   sourceRef:
     kind: GitRepository

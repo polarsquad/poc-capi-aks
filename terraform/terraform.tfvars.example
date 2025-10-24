@@ -1,6 +1,0 @@
-# Terraform variables file template
-# Copy this to terraform.tfvars and customize as needed
-
-# resource_group_name = "aks-workload-cluster-rg"
-# location = "swedencentral"
-# service_principal_name = "aks-workload-cluster-sp"

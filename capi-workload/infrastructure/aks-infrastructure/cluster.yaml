@@ -36,7 +36,7 @@ spec:
       networkProfile:
         networkPlugin: azure
       owner:
-        name: ${RESOURCE_GROUP_NAME}
+        name: ${AZURE_RESOURCE_GROUP_NAME}
       servicePrincipalProfile:
         clientId: msi
   version: ${KUBERNETES_VERSION}
@@ -54,7 +54,7 @@ spec:
     metadata:
       annotations:
         serviceoperator.azure.com/credential-from: azure-cluster-identity
-      name: ${RESOURCE_GROUP_NAME}
+      name: ${AZURE_RESOURCE_GROUP_NAME}
     spec:
       location: ${AZURE_LOCATION}
       
@@ -96,7 +96,7 @@ spec:
       azureName: pool0
       mode: System
       owner:
-        name: ${RESOURCE_GROUP_NAME}
+        name: ${AZURE_RESOURCE_GROUP_NAME}
       type: VirtualMachineScaleSets
       vmSize: ${AZURE_NODE_MACHINE_TYPE}
 
@@ -138,6 +138,6 @@ spec:
       azureName: pool1
       mode: User
       owner:
-        name: ${RESOURCE_GROUP_NAME}
+        name: ${AZURE_RESOURCE_GROUP_NAME}
       type: VirtualMachineScaleSets
       vmSize: ${AZURE_NODE_MACHINE_TYPE}
