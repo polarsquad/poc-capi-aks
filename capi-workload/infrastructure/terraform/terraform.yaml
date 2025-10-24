@@ -14,7 +14,6 @@ spec:
   varsFrom:
     - kind: Secret
       name: azure-cluster-identity
-      namespace: flux-system
       varsKeys:
         - subscriptionID:arm_subscription_id
         - tenantID:arm_tenant_id
