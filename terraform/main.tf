@@ -15,18 +15,54 @@ terraform {
 provider "azurerm" {
   features {}
   
+  # Service principal authentication via environment variables
+  subscription_id = var.subscription_id
+  tenant_id       = var.tenant_id
+  client_id       = var.client_id
+  client_secret   = var.client_secret
+  
   # Force service principal authentication (disable Azure CLI and OIDC)
   use_cli  = false
   use_oidc = false
 }
 
 provider "azuread" {
+  # Service principal authentication via environment variables
+  tenant_id     = var.tenant_id
+  client_id     = var.client_id
+  client_secret = var.client_secret
+  
   # Force service principal authentication (disable Azure CLI and OIDC)
   use_cli  = false
   use_oidc = false
 }
 
-# Variables
+# Variables - Azure Authentication
+variable "subscription_id" {
+  description = "Azure subscription ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "tenant_id" {
+  description = "Azure AD tenant ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "client_id" {
+  description = "Service principal client ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "client_secret" {
+  description = "Service principal client secret"
+  type        = string
+  sensitive   = true
+}
+
+# Variables - Infrastructure
 variable "resource_group_name" {
   description = "Name of the resource group"
   type        = string
