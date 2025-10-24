@@ -44,6 +44,6 @@ spec:
     name: flux-system
   targetNamespace: default
   dependsOn:
-    - name: terraform-controller
+    - name: terraform
   wait: true
 
