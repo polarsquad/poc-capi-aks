@@ -14,18 +14,10 @@ terraform {
 
 provider "azurerm" {
   features {}
-  
   subscription_id = var.arm_subscription_id
-  tenant_id       = var.arm_tenant_id
-  client_id       = var.arm_client_id
-  client_secret   = var.arm_client_secret
 }
 
-provider "azuread" {
-  tenant_id     = var.arm_tenant_id
-  client_id     = var.arm_client_id
-  client_secret = var.arm_client_secret
-}
+provider "azuread" {}
 
 # Variables - Authentication
 variable "arm_subscription_id" {
@@ -36,18 +28,6 @@ variable "arm_subscription_id" {
 
 variable "arm_tenant_id" {
   description = "Azure AD tenant ID"
-  type        = string
-  sensitive   = true
-}
-
-variable "arm_client_id" {
-  description = "Service principal client ID"
-  type        = string
-  sensitive   = true
-}
-
-variable "arm_client_secret" {
-  description = "Service principal client secret"
   type        = string
   sensitive   = true
 }
@@ -97,12 +77,10 @@ resource "azuread_application" "main" {
 resource "azuread_service_principal" "main" {
   client_id = azuread_application.main.client_id
   owners    = [data.azurerm_client_config.current.object_id]
-
-  depends_on = [azuread_application.main]
 }
+
 resource "azuread_service_principal_password" "main" {
   service_principal_id = azuread_service_principal.main.id
-
   depends_on = [azuread_service_principal.main]
 }
 
@@ -110,11 +88,9 @@ resource "azurerm_role_assignment" "contributor" {
   scope                = data.azurerm_subscription.current.id
   role_definition_name = "Contributor"
   principal_id         = azuread_service_principal.main.object_id
-
-  depends_on = [azuread_service_principal.main]
 }
 
-# Outputs
+#Outputs
 output "azure_resource_group_location" {
   description = "Location of the resource group"
   value       = azurerm_resource_group.main.location
