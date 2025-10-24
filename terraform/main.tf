@@ -115,11 +115,6 @@ resource "azurerm_role_assignment" "contributor" {
 }
 
 # Outputs
-  value       = azurerm_resource_group.main.name
-}
-
-output "azure_resource_group_location" {
-  description = "Location of the resource group"
 output "azure_resource_group_location" {
   description = "Location of the resource group"
   value       = azurerm_resource_group.main.location
@@ -140,6 +135,8 @@ output "service_principal_client_secret" {
   value       = azuread_service_principal_password.main.value
   sensitive   = true
 }
+
+output "service_principal_object_id" {
   description = "Object ID of the service principal"
   value       = azuread_service_principal.main.object_id
 }
@@ -148,10 +145,9 @@ output "arm_tenant_id" {
   description = "Azure AD tenant ID"
   value       = var.arm_tenant_id
 }
-
 output "arm_subscription_id" {
   description = "Azure subscription ID"
-  value       = data.azurerm_client_config.current.subscription_id
+  value       = var.arm_subscription_id
 }
 
 output "azure_service_principal_name" {
