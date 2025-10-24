@@ -339,7 +339,7 @@ print_step "6" "Generate workload cluster secret (cluster-secrets.sh) after Terr
 cd cluster-api/workload
 chmod +x cluster-secrets.sh
 export CLUSTER_NAME=${CLUSTER_NAME:-aks-workload-cluster}
-export KUBERNETES_VERSION=${KUBERNETES_VERSION:-v1.29.3}
+export KUBERNETES_VERSION=${KUBERNETES_VERSION:-v1.33.2}
 export WORKER_MACHINE_COUNT=${WORKER_MACHINE_COUNT:-2}
 export AZURE_NODE_MACHINE_TYPE=${AZURE_NODE_MACHINE_TYPE:-Standard_DS3_v2}
 export AZURE_LOCATION=$(kubectl get secret terraform-outputs -n $TF_NS -o jsonpath='{.data.location}' 2>/dev/null | base64 -d || echo swedencentral)
