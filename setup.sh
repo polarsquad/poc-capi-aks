@@ -217,7 +217,7 @@ apiVersion: v1
 kind: Secret
 metadata:
     name: azure-cluster-identity
-    namespace: default
+    namespace: flux-system
 stringData:
     subscriptionID: "${ARM_SUBSCRIPTION_ID}"
     tenantID: "${AZURE_TENANT_ID}"
