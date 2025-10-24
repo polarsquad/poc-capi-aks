@@ -21,6 +21,7 @@ metadata:
 spec:
   interval: 10m0s
   path: ./aks-infrastructure
+  prune: true
   sourceRef:
     kind: GitRepository
     name: flux-system
