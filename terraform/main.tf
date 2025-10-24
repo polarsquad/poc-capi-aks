@@ -14,9 +14,17 @@ terraform {
 
 provider "azurerm" {
   features {}
+  
+  # Force service principal authentication (disable Azure CLI and OIDC)
+  use_cli  = false
+  use_oidc = false
 }
 
-provider "azuread" {}
+provider "azuread" {
+  # Force service principal authentication (disable Azure CLI and OIDC)
+  use_cli  = false
+  use_oidc = false
+}
 
 # Variables
 variable "resource_group_name" {
