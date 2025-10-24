@@ -13,54 +13,54 @@ spec:
   varsFrom:
     - kind: Secret
       name: azure-cluster-identity
+  # Terraform outputs will be written to the specified Kubernetes Secret,
+  # allowing other resources to consume these outputs as needed.
   writeOutputsToSecret:
     name: terraform-outputs
-  # Local backend (default) - using repo working dir state
-  runnerPodTemplate:
-    spec:
-      serviceAccountName: default
-      containers:
-        - name: terraform
-          env:
-            - name: ARM_SUBSCRIPTION_ID
-              valueFrom:
-                secretKeyRef:
-                  name: azure-cluster-identity
-                  key: subscriptionID
-            - name: ARM_TENANT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: azure-cluster-identity
-                  key: tenantID
-            - name: ARM_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: azure-cluster-identity
-                  key: clientID
-            - name: ARM_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: azure-cluster-identity-secret
-                  key: clientSecret
-            - name: AZURE_LOCATION
-              valueFrom:
-                secretKeyRef:
-                  name: azure-cluster-identity-secret
-                  key: location
-            - name: AZURE_RESOURCE_GROUP_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: azure-cluster-identity-secret
-                  key: resourceGroupName
-            - name: AZURE_SERVICE_PRINCIPAL_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: azure-cluster-identity-secret
-                  key: servicePrincipalName
-          resources:
-            limits:
-              cpu: 500m
-              memory: 512Mi
-            requests:
-              cpu: 250m
-              memory: 256Mi
+  serviceAccountName: default
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+      # containers:
+      #   - name: terraform
+      #     env:
+      #       - name: ARM_SUBSCRIPTION_ID
+      #         valueFrom:
+      #           secretKeyRef:
+      #             name: azure-cluster-identity
+      #             key: subscriptionID
+      #       - name: ARM_TENANT_ID
+      #         valueFrom:
+      #           secretKeyRef:
+      #             name: azure-cluster-identity
+      #             key: tenantID
+      #       - name: ARM_CLIENT_ID
+      #         valueFrom:
+      #           secretKeyRef:
+      #             name: azure-cluster-identity
+      #             key: clientID
+      #       - name: ARM_CLIENT_SECRET
+      #         valueFrom:
+      #           secretKeyRef:
+      #             name: azure-cluster-identity-secret
+      #             key: clientSecret
+      #       - name: AZURE_LOCATION
+      #         valueFrom:
+      #           secretKeyRef:
+      #             name: azure-cluster-identity-secret
+      #             key: location
+      #       - name: AZURE_RESOURCE_GROUP_NAME
+      #         valueFrom:
+      #           secretKeyRef:
+      #             name: azure-cluster-identity-secret
+      #             key: resourceGroupName
+      #       - name: AZURE_SERVICE_PRINCIPAL_NAME
+      #         valueFrom:
+      #           secretKeyRef:
+      #             name: azure-cluster-identity-secret
+      #             key: servicePrincipalName
+
