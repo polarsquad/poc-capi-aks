@@ -6,7 +6,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./terraform-controller
+  path: ./capi-workload/infrastructure/terraform-controller
   prune: true
   sourceRef:
     kind: GitRepository
@@ -20,7 +20,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./aks-infrastructure
+  path: ./capi-workload/infrastructure/terraform-controller
   prune: true
   sourceRef:
     kind: GitRepository
