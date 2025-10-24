@@ -17,8 +17,6 @@ spec:
       varsKeys:
         - subscriptionID:arm_subscription_id
         - tenantID:arm_tenant_id
-        - clientID:arm_client_id
-        - clientSecret:arm_client_secret
         - location:azure_location
         - resourceGroupName:azure_resource_group_name
         - servicePrincipalName:azure_service_principal_name
