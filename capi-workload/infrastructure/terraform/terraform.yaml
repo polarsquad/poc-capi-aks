@@ -14,29 +14,10 @@ spec:
   varsFrom:
     - kind: Secret
       name: azure-cluster-identity
-  # Terraform outputs will be written to the specified Kubernetes Secret,
-  # allowing other resources to consume these outputs as needed.
-  writeOutputsToSecret:
-    name: terraform-outputs
-  serviceAccountName: default
-      # containers:
-      #   - name: terraform
-      #     env:
-      #       - name: ARM_SUBSCRIPTION_ID
-      #         valueFrom:
-      #           secretKeyRef:
-      #             name: azure-cluster-identity
-      #             key: subscriptionID
-      #       - name: ARM_TENANT_ID
-      #         valueFrom:
-      #           secretKeyRef:
-      #             name: azure-cluster-identity
-      #             key: tenantID
-      #       - name: ARM_CLIENT_ID
-      #         valueFrom:
-      #           secretKeyRef:
-      #             name: azure-cluster-identity
-      #             key: clientID
+      #     varsKeys:
+      #       - subscriptionID:ARM_SUBSCRIPTION_ID
+      #       - tenantID:ARM_TENANT_ID
+      #       - clientID:ARM_CLIENT_ID
       #       - name: ARM_CLIENT_SECRET
       #         valueFrom:
       #           secretKeyRef:
@@ -57,4 +38,8 @@ spec:
       #           secretKeyRef:
       #             name: azure-cluster-identity-secret
       #             key: servicePrincipalName
-
+  # Terraform outputs will be written to the specified Kubernetes Secret,
+  # allowing other resources to consume these outputs as needed.
+  writeOutputsToSecret:
+    name: terraform-outputs
+  serviceAccountName: terraform-runner
