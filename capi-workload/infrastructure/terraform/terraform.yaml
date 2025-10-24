@@ -6,7 +6,7 @@ metadata:
 spec:
   approvePlan: auto
   interval: 15m
-  path: ./terraform
+  path: ./capi-workload/infrastructure/terraform/
   sourceRef:
     kind: GitRepository
     name: flux-system
