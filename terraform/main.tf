@@ -144,10 +144,12 @@ output "service_principal_object_id" {
 output "arm_tenant_id" {
   description = "Azure AD tenant ID"
   value       = var.arm_tenant_id
+  sensitive   = true
 }
 output "arm_subscription_id" {
   description = "Azure subscription ID"
   value       = var.arm_subscription_id
+  sensitive   = true
 }
 
 output "azure_service_principal_name" {
