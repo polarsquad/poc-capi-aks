@@ -176,17 +176,17 @@ metadata:
     name: azure-cluster-identity
     namespace: default
 stringData:
-    subscriptionID: "${ARM_SUBSCRIPTION_ID}"
-    tenantID: "${AZURE_TENANT_ID}"
-    clientID: "${AZURE_CLIENT_ID}"
-    clientSecret: "${AZURE_CLIENT_SECRET}"
-    location: "${AZURE_LOCATION}"
-    resourceGroupName: "${AZURE_RESOURCE_GROUP_NAME}"
-    servicePrincipalName: "${AZURE_SERVICE_PRINCIPAL_NAME}"
-    clusterName: "${CLUSTER_NAME}"
-    kubernetesVersion: "${KUBERNETES_VERSION}"
-    workerMachineCount: "${WORKER_MACHINE_COUNT}"
-    azureNodeMachineType: "${AZURE_NODE_MACHINE_TYPE}"
+    ARM_SUBSCRIPTION_ID: "${ARM_SUBSCRIPTION_ID}"
+    AZURE_TENANT_ID: "${AZURE_TENANT_ID}"
+    AZURE_CLIENT_ID: "${AZURE_CLIENT_ID}"
+    AZURE_CLIENT_SECRET: "${AZURE_CLIENT_SECRET}"
+    AZURE_LOCATION: "${AZURE_LOCATION}"
+    AZURE_RESOURCE_GROUP_NAME: "${AZURE_RESOURCE_GROUP_NAME}"
+    AZURE_SERVICE_PRINCIPAL_NAME: "${AZURE_SERVICE_PRINCIPAL_NAME}"
+    CLUSTER_NAME: "${CLUSTER_NAME}"
+    KUBERNETES_VERSION: "${KUBERNETES_VERSION}"
+    WORKER_MACHINE_COUNT: "${WORKER_MACHINE_COUNT}"
+    AZURE_NODE_MACHINE_TYPE: "${AZURE_NODE_MACHINE_TYPE}"
 EOF
 
 print_success "Azure identity & config secrets configured from Terraform outputs"
