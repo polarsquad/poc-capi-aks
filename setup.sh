@@ -4,8 +4,8 @@
 # Target Flow:
 #  1. Use Terraform CLI to create Azure service principal and resource group.
 #  2. Create kind ClusterAPI management cluster.
-#  3. Install Flux (manifests under capi-workload/flux-system) and reconcile management GitOps tree.
-#  4. Create azure-cluster-identity secret from Terraform outputs.
+#  3. Create azure-cluster-identity secret from Terraform outputs.
+#  4. Install Flux (manifests under capi-workload/flux-system) and reconcile management GitOps tree.
 #  5. Ensure aks-infrastructure (Kustomization in ./capi-workload/infrastructure/aks-infrastructure) reconciles.
 #  6. Wait until workload cluster (Cluster resource) becomes Ready.
 #  7. Install Flux on workload cluster (manifests under aks-workload/flux-system) and bootstrap its GitOps source.
@@ -166,7 +166,32 @@ kubectl wait --for=condition=Available --timeout=300s -n capz-system deployment/
 
 print_success "ClusterAPI management cluster ready"
 
-print_step "3" "Install Flux controllers on management cluster (manifests path capi-workload/flux-system)"
+print_step "3" "Create Azure identity secret from Terraform outputs and mise.toml environment variables"
+
+echo "[setup] Creating azure-cluster-identity secret from Terraform outputs and mise.toml environment variables..."
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+    name: azure-cluster-identity
+    namespace: default
+stringData:
+    subscriptionID: "${ARM_SUBSCRIPTION_ID}"
+    tenantID: "${AZURE_TENANT_ID}"
+    clientID: "${AZURE_CLIENT_ID}"
+    clientSecret: "${AZURE_CLIENT_SECRET}"
+    location: "${AZURE_LOCATION}"
+    resourceGroupName: "${AZURE_RESOURCE_GROUP_NAME}"
+    servicePrincipalName: "${AZURE_SERVICE_PRINCIPAL_NAME}"
+    clusterName: "${CLUSTER_NAME}"
+    kubernetesVersion: "${KUBERNETES_VERSION}"
+    workerMachineCount: "${WORKER_MACHINE_COUNT}"
+    azureNodeMachineType: "${AZURE_NODE_MACHINE_TYPE}"
+EOF
+
+print_success "Azure identity & config secrets configured from Terraform outputs"
+
+print_step "4" "Install Flux controllers on management cluster (manifests path capi-workload/flux-system)"
 
 FLUX_COMPONENTS_DIR="capi-workload/flux-system"
 GOTK_COMPONENTS_FILE="${FLUX_COMPONENTS_DIR}/gotk-components.yaml"
@@ -213,7 +238,7 @@ kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/
 kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/helm-controller || true
 kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/notification-controller || true
 
-print_step "3a" "Wait for GitRepository flux-system Ready before creating secrets"
+print_step "4a" "Wait for GitRepository flux-system Ready"
 for i in {1..30}; do
     GIT_READY=$(kubectl get gitrepository -n flux-system flux-system -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
     if [ "$GIT_READY" = "True" ]; then
@@ -225,32 +250,6 @@ for i in {1..30}; do
         print_warning "GitRepository flux-system not Ready within timeout; proceeding anyway"
     fi
 done
-
-# Step 4: Azure Credentials from Terraform outputs
-print_step "4" "Create Azure identity secret from Terraform outputs and mise.toml environment variables"
-
-echo "[setup] Creating azure-cluster-identity secret from Terraform outputs and mise.toml environment variables..."
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Secret
-metadata:
-    name: azure-cluster-identity
-    namespace: flux-system
-stringData:
-    subscriptionID: "${ARM_SUBSCRIPTION_ID}"
-    tenantID: "${AZURE_TENANT_ID}"
-    clientID: "${AZURE_CLIENT_ID}"
-    clientSecret: "${AZURE_CLIENT_SECRET}"
-    location: "${AZURE_LOCATION}"
-    resourceGroupName: "${AZURE_RESOURCE_GROUP_NAME}"
-    servicePrincipalName: "${AZURE_SERVICE_PRINCIPAL_NAME}"
-    clusterName: "${CLUSTER_NAME}"
-    kubernetesVersion: "${KUBERNETES_VERSION}"
-    workerMachineCount: "${WORKER_MACHINE_COUNT}"
-    azureNodeMachineType: "${AZURE_NODE_MACHINE_TYPE}"
-EOF
-
-print_success "Azure identity & config secrets configured from Terraform outputs"
 
 print_step "5" "Wait for aks-infrastructure Kustomization reconciliation"
 echo "[setup] Waiting for Kustomization 'aks-infrastructure' to become Ready..."
