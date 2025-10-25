@@ -12,8 +12,12 @@ spec:
     kind: GitRepository
     name: flux-system
   wait: true
+  dependsOn:
+    - name: flux-system
+      namespace: flux-system
   postBuild:
     substituteFrom:
       - kind: Secret
         name: azure-cluster-identity
+
 
