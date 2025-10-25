@@ -254,7 +254,7 @@ done
 print_step "5" "Wait for aks-infrastructure Kustomization reconciliation"
 echo "[setup] Waiting for Kustomization 'aks-infrastructure' to become Ready..."
 for i in {1..40}; do
-    KUST_READY=$(kubectl get kustomization aks-infrastructure -n flux-system -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+    KUST_READY=$(kubectl get kustomization aks-infrastructure -n default -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
     if [ "$KUST_READY" = "True" ]; then
         print_success "aks-infrastructure Kustomization Ready"
         break
