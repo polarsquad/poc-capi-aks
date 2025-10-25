@@ -29,6 +29,8 @@ spec:
         serviceoperator.azure.com/credential-from: azure-cluster-identity
       name: ${CLUSTER_NAME}
     spec:
+      sku:
+        tier: Free 
       dnsPrefix: ${CLUSTER_NAME}
       identity:
         type: SystemAssigned
