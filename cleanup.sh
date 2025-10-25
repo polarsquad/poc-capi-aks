@@ -77,6 +77,7 @@ rm -f cluster-api/workload/rendered-cluster.yaml || true
 rm -f ${CLUSTER_NAME}.kubeconfig || true
 rm -f capi-workload/flux-system/gotk-components.yaml || true
 rm -f capi-workload/flux-system/gotk-sync.yaml || true
+rm -f capi-workload/infrastructure/aks-infrastructure/cluster.yaml || true
 rm -f aks-workload/flux-system/gotk-components.yaml || true
 rm -f aks-workload/flux-system/gotk-sync.yaml || true
 ok "Local generated files removed."
