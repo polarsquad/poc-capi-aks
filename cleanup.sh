@@ -73,7 +73,15 @@ fi
 
 echo "Step 6: Local file cleanup..."
 rm -rf cluster-api/workload/*.kubeconfig || true
+rm -f cluster-api/workload/rendered-cluster.yaml || true
+rm -f ${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig || true
+rm -f ${HOME}/.kube/${CLUSTER_NAME}.kubeconfig || true
 rm -f ${CLUSTER_NAME}.kubeconfig || true
+rm -f capi-workload/flux-system/gotk-components.yaml || true
+rm -f capi-workload/flux-system/gotk-sync.yaml || true
+rm -f capi-workload/infrastructure/aks-infrastructure/cluster.yaml || true
+rm -f aks-workload/flux-system/gotk-components.yaml || true
+rm -f aks-workload/flux-system/gotk-sync.yaml || true
 ok "Local generated files removed."
 
 echo "Step 7: Destroy Azure resources using Terraform..."

@@ -133,7 +133,7 @@ print_step "2" "Create kind management cluster and initialize ClusterAPI"
 
 echo "[setup] Creating kind cluster '${CAPI_CLUSTER_NAME}' (if absent)..."
 if ! kind get clusters | grep -q "^${CAPI_CLUSTER_NAME}$"; then
-cat <<EOF | kind create cluster --name "${CAPI_CLUSTER_NAME}" --config=-
+cat <<EOF | kind create cluster --name "${CAPI_CLUSTER_NAME}" --config=- --kubeconfig="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
@@ -151,8 +151,13 @@ nodes:
         eviction-soft: memory.available<1Gi
         eviction-soft-grace-period: memory.available=1m30s
 EOF
+    export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+    print_success "Created kind cluster and saved kubeconfig to ${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
 else
     echo "[setup] Reusing existing kind cluster '${CAPI_CLUSTER_NAME}'."
+    # Export kubeconfig for existing cluster
+    kind export kubeconfig --name="${CAPI_CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+    export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
 fi
 
 kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" >/dev/null
@@ -274,18 +279,42 @@ export CLUSTER_NAME=${CLUSTER_NAME:-aks-workload-cluster}
 kubectl wait --for=condition=Ready --timeout=600s cluster/${CLUSTER_NAME} 2>/dev/null || print_warning "Cluster Ready condition timeout"
 
 print_step "7" "Install Flux on workload cluster (aks-workload/flux-system)"
-echo "[setup] Fetching workload cluster kubeconfig..."
-WORKLOAD_KUBECONFIG="cluster-api/workload/${CLUSTER_NAME}.kubeconfig"
-if [ ! -f "$WORKLOAD_KUBECONFIG" ]; then
-    clusterctl get kubeconfig ${CLUSTER_NAME} > "$WORKLOAD_KUBECONFIG" 2>/dev/null || print_warning "Unable to retrieve kubeconfig via clusterctl; ensure ClusterAPI has finished reconciling."
-fi
 
-if [ -f "$WORKLOAD_KUBECONFIG" ]; then
-    export KUBECONFIG="$WORKLOAD_KUBECONFIG"
-    print_success "Switched KUBECONFIG to workload cluster"
-else
-    print_warning "Workload kubeconfig file missing, attempting to continue using management context"
-fi
+# Ensure we're on the management cluster context
+kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" >/dev/null 2>&1
+
+echo "[setup] Fetching workload cluster kubeconfig..."
+WORKLOAD_KUBECONFIG="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
+mkdir -p "${HOME}/.kube"
+
+# Retry logic for kubeconfig retrieval
+KUBECONFIG_ATTEMPTS=0
+MAX_KUBECONFIG_ATTEMPTS=12
+until [ -f "$WORKLOAD_KUBECONFIG" ] && [ -s "$WORKLOAD_KUBECONFIG" ]; do
+    if [ $KUBECONFIG_ATTEMPTS -ge $MAX_KUBECONFIG_ATTEMPTS ]; then
+        print_error "Failed to retrieve kubeconfig for cluster '${CLUSTER_NAME}' after $MAX_KUBECONFIG_ATTEMPTS attempts. Cluster may not be fully provisioned."
+    fi
+    
+    echo "[setup] Attempting to retrieve kubeconfig (attempt $((KUBECONFIG_ATTEMPTS + 1))/$MAX_KUBECONFIG_ATTEMPTS)..."
+    clusterctl get kubeconfig ${CLUSTER_NAME} > "$WORKLOAD_KUBECONFIG" 2>/dev/null || true
+    
+    # Check if file exists and is not empty
+    if [ -f "$WORKLOAD_KUBECONFIG" ] && [ -s "$WORKLOAD_KUBECONFIG" ]; then
+        print_success "Kubeconfig retrieved successfully"
+        break
+    else
+        rm -f "$WORKLOAD_KUBECONFIG" 2>/dev/null || true
+        KUBECONFIG_ATTEMPTS=$((KUBECONFIG_ATTEMPTS + 1))
+        if [ $KUBECONFIG_ATTEMPTS -lt $MAX_KUBECONFIG_ATTEMPTS ]; then
+            echo "[setup] Kubeconfig not ready yet, waiting 10 seconds before retry..."
+            sleep 10
+        fi
+    fi
+done
+
+# Switch to workload cluster context
+export KUBECONFIG="$WORKLOAD_KUBECONFIG"
+print_success "Switched KUBECONFIG to workload cluster: $WORKLOAD_KUBECONFIG"
 
 WL_FLUX_DIR="aks-workload/flux-system"
 WL_GOTK_COMPONENTS="$WL_FLUX_DIR/gotk-components.yaml"
@@ -366,7 +395,7 @@ for i in {1..40}; do
 done
 
 # Switch back to management cluster kubeconfig for tests referencing controllers there (optional)
-export KUBECONFIG="${HOME}/.kube/config"
+export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
 kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" >/dev/null 2>&1 || true
 
 echo ""
@@ -382,11 +411,11 @@ echo "3. Review workload GitOps tree: ./aks-workload (flux-system, apps)"
 echo "4. Add/modify application manifests under aks-workload/apps/sample-apps"
 echo "5. Commit and push changes - both Flux instances will reconcile"
 echo "6. View workload cluster Kustomization status: flux -n flux-system get kustomizations"
-echo "7. Switch to workload cluster: export KUBECONFIG=cluster-api/workload/aks-workload-cluster.kubeconfig"
+echo "7. Switch to workload cluster: export KUBECONFIG=${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
 echo "8. Inspect workload apps: flux get all"
 echo ""
 echo "Useful commands:"
-echo "- Access workload cluster: export KUBECONFIG=cluster-api/workload/aks-workload-cluster.kubeconfig"
+echo "- Access workload cluster: export KUBECONFIG=${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
 echo "- Check Flux status: flux get all"
 echo "- View aks-infrastructure Kustomization: flux -n flux-system get kustomizations aks-infrastructure"
 echo "- View Cluster resource: kubectl get cluster ${CLUSTER_NAME}"
