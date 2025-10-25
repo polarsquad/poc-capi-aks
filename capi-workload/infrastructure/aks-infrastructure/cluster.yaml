@@ -6,11 +6,11 @@ metadata:
   namespace: default
 spec:
   controlPlaneRef:
-    apiGroup: infrastructure.cluster.x-k8s.io
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: AzureASOManagedControlPlane
     name: ${CLUSTER_NAME}
   infrastructureRef:
-    apiGroup: infrastructure.cluster.x-k8s.io
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: AzureASOManagedCluster
     name: ${CLUSTER_NAME}
 
@@ -73,7 +73,7 @@ spec:
         dataSecretName: ""
       clusterName: ${CLUSTER_NAME}
       infrastructureRef:
-        apiGroup: infrastructure.cluster.x-k8s.io
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: AzureASOManagedMachinePool
         name: ${CLUSTER_NAME}-pool0
       version: ${KUBERNETES_VERSION}
@@ -115,7 +115,7 @@ spec:
         dataSecretName: ""
       clusterName: ${CLUSTER_NAME}
       infrastructureRef:
-        apiGroup: infrastructure.cluster.x-k8s.io
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: AzureASOManagedMachinePool
         name: ${CLUSTER_NAME}-pool1
       version: ${KUBERNETES_VERSION}
