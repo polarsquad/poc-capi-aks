@@ -6,11 +6,10 @@
 #  2. Create kind ClusterAPI management cluster.
 #  3. Install Flux (manifests under capi-workload/flux-system) and reconcile management GitOps tree.
 #  4. Create azure-cluster-identity secret from Terraform outputs.
-#  5. Generate workload cluster manifest (cluster.yaml) with environment variable substitution.
-#  6. Ensure aks-infrastructure (Kustomization in ./capi-workload/infrastructure/aks-infrastructure) reconciles.
-#  7. Wait until workload cluster (Cluster resource) becomes Ready.
-#  8. Install Flux on workload cluster (manifests under aks-workload/flux-system) and bootstrap its GitOps source.
-#  9. Wait for apps Kustomization in workload cluster (aks-workload/apps) to become Ready.
+#  5. Ensure aks-infrastructure (Kustomization in ./capi-workload/infrastructure/aks-infrastructure) reconciles.
+#  6. Wait until workload cluster (Cluster resource) becomes Ready.
+#  7. Install Flux on workload cluster (manifests under aks-workload/flux-system) and bootstrap its GitOps source.
+#  8. Wait for apps Kustomization in workload cluster (aks-workload/apps) to become Ready.
 
 set -euo pipefail
 
@@ -228,9 +227,9 @@ for i in {1..30}; do
 done
 
 # Step 4: Azure Credentials from Terraform outputs
-print_step "4" "Create Azure identity secret from Terraform outputs"
+print_step "4" "Create Azure identity secret from Terraform outputs and mise.toml environment variables"
 
-echo "[setup] Creating azure-cluster-identity secret from Terraform outputs..."
+echo "[setup] Creating azure-cluster-identity secret from Terraform outputs and mise.toml environment variables..."
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Secret
@@ -245,166 +244,15 @@ stringData:
     location: "${AZURE_LOCATION}"
     resourceGroupName: "${AZURE_RESOURCE_GROUP_NAME}"
     servicePrincipalName: "${AZURE_SERVICE_PRINCIPAL_NAME}"
+    clusterName: "${CLUSTER_NAME}"
+    kubernetesVersion: "${KUBERNETES_VERSION}"
+    workerMachineCount: "${WORKER_MACHINE_COUNT}"
+    azureNodeMachineType: "${AZURE_NODE_MACHINE_TYPE}"
 EOF
 
-print_success "Azure identity secrets configured from Terraform outputs"
+print_success "Azure identity & config secrets configured from Terraform outputs"
 
-print_step "5" "Generate workload cluster manifest with environment variable substitution"
-echo "[setup] Creating cluster manifest from template..."
-
-# Ensure the target directory exists
-mkdir -p capi-workload/infrastructure/aks-infrastructure
-
-# Generate cluster.yaml with environment variable substitution
-cat > capi-workload/infrastructure/aks-infrastructure/cluster.yaml <<EOF
----
-apiVersion: cluster.x-k8s.io/v1beta2
-kind: Cluster
-metadata:
-  name: ${CLUSTER_NAME}
-  namespace: default
-spec:
-  controlPlaneRef:
-    apiGroup: infrastructure.cluster.x-k8s.io
-    kind: AzureASOManagedControlPlane
-    name: ${CLUSTER_NAME}
-  infrastructureRef:
-    apiGroup: infrastructure.cluster.x-k8s.io
-    kind: AzureASOManagedCluster
-    name: ${CLUSTER_NAME}
-
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureASOManagedControlPlane
-metadata:
-  name: ${CLUSTER_NAME}
-  namespace: default
-spec:
-  resources:
-  - apiVersion: containerservice.azure.com/v1api20240901
-    kind: ManagedCluster
-    metadata:
-      annotations:
-        serviceoperator.azure.com/credential-from: azure-cluster-identity
-      name: ${CLUSTER_NAME}
-    spec:
-      dnsPrefix: ${CLUSTER_NAME}
-      identity:
-        type: SystemAssigned
-      location: ${AZURE_LOCATION}
-      networkProfile:
-        networkPlugin: azure
-      owner:
-        name: ${AZURE_RESOURCE_GROUP_NAME}
-      servicePrincipalProfile:
-        clientId: msi
-  version: ${KUBERNETES_VERSION:-v1.33.2}
-
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureASOManagedCluster
-metadata:
-  name: ${CLUSTER_NAME}
-  namespace: default
-spec:
-  resources:
-  - apiVersion: resources.azure.com/v1api20200601
-    kind: ResourceGroup
-    metadata:
-      annotations:
-        serviceoperator.azure.com/credential-from: azure-cluster-identity
-      name: ${AZURE_RESOURCE_GROUP_NAME}
-    spec:
-      location: ${AZURE_LOCATION}
-      
----
-apiVersion: cluster.x-k8s.io/v1beta2
-kind: MachinePool
-metadata:
-  name: ${CLUSTER_NAME}-pool0
-  namespace: default
-spec:
-  clusterName: ${CLUSTER_NAME}
-  replicas: ${WORKER_MACHINE_COUNT:-2}
-  template:
-    spec:
-      bootstrap:
-        dataSecretName: ""
-      clusterName: ${CLUSTER_NAME}
-      infrastructureRef:
-        apiGroup: infrastructure.cluster.x-k8s.io
-        kind: AzureASOManagedMachinePool
-        name: ${CLUSTER_NAME}-pool0
-      version: ${KUBERNETES_VERSION:-v1.33.2}
-
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureASOManagedMachinePool
-metadata:
-  name: ${CLUSTER_NAME}-pool0
-  namespace: default
-spec:
-  resources:
-  - apiVersion: containerservice.azure.com/v1api20240901
-    kind: ManagedClustersAgentPool
-    metadata:
-      annotations:
-        serviceoperator.azure.com/credential-from: azure-cluster-identity
-      name: ${CLUSTER_NAME}-pool0
-    spec:
-      azureName: pool0
-      mode: System
-      owner:
-        name: ${CLUSTER_NAME}
-      type: VirtualMachineScaleSets
-      vmSize: ${AZURE_NODE_MACHINE_TYPE:-Standard_D3s_v2}
-
----
-apiVersion: cluster.x-k8s.io/v1beta2
-kind: MachinePool
-metadata:
-  name: ${CLUSTER_NAME}-pool1
-  namespace: default
-spec:
-  clusterName: ${CLUSTER_NAME}
-  replicas: ${WORKER_MACHINE_COUNT:-2}
-  template:
-    spec:
-      bootstrap:
-        dataSecretName: ""
-      clusterName: ${CLUSTER_NAME}
-      infrastructureRef:
-        apiGroup: infrastructure.cluster.x-k8s.io
-        kind: AzureASOManagedMachinePool
-        name: ${CLUSTER_NAME}-pool1
-      version: ${KUBERNETES_VERSION:-v1.33.2}
-
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureASOManagedMachinePool
-metadata:
-  name: ${CLUSTER_NAME}-pool1
-  namespace: default
-spec:
-  resources:
-  - apiVersion: containerservice.azure.com/v1api20240901
-    kind: ManagedClustersAgentPool
-    metadata:
-      annotations:
-        serviceoperator.azure.com/credential-from: azure-cluster-identity
-      name: ${CLUSTER_NAME}-pool1
-    spec:
-      azureName: pool1
-      mode: User
-      owner:
-        name: ${CLUSTER_NAME}
-      type: VirtualMachineScaleSets
-      vmSize: ${AZURE_NODE_MACHINE_TYPE:-Standard_D3s_v2}
-EOF
-
-print_success "Cluster manifest generated at capi-workload/infrastructure/aks-infrastructure/cluster.yaml"
-
-print_step "6" "Wait for aks-infrastructure Kustomization reconciliation"
+print_step "5" "Wait for aks-infrastructure Kustomization reconciliation"
 echo "[setup] Waiting for Kustomization 'aks-infrastructure' to become Ready..."
 for i in {1..40}; do
     KUST_READY=$(kubectl get kustomization aks-infrastructure -n flux-system -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
@@ -421,11 +269,11 @@ for i in {1..40}; do
     fi
 done
 
-print_step "7" "Wait for Cluster resource readiness (workload cluster creation)"
+print_step "6" "Wait for Cluster resource readiness (workload cluster creation)"
 export CLUSTER_NAME=${CLUSTER_NAME:-aks-workload-cluster}
 kubectl wait --for=condition=Ready --timeout=600s cluster/${CLUSTER_NAME} 2>/dev/null || print_warning "Cluster Ready condition timeout"
 
-print_step "8" "Install Flux on workload cluster (aks-workload/flux-system)"
+print_step "7" "Install Flux on workload cluster (aks-workload/flux-system)"
 echo "[setup] Fetching workload cluster kubeconfig..."
 WORKLOAD_KUBECONFIG="cluster-api/workload/${CLUSTER_NAME}.kubeconfig"
 if [ ! -f "$WORKLOAD_KUBECONFIG" ]; then
@@ -498,9 +346,9 @@ for i in {1..30}; do
 done
 
 #############################################
-# Step 9: Wait for apps reconciliation in workload cluster
+# Step 8: Wait for apps reconciliation in workload cluster
 #############################################
-print_step "9" "Wait for apps Kustomization in workload cluster"
+print_step "8" "Wait for apps Kustomization in workload cluster"
 for i in {1..40}; do
     W_APP_STATUS=$(flux -n flux-system get kustomizations apps 2>/dev/null | awk 'NR==2{print $2}')
     if [ "$W_APP_STATUS" = "Ready" ]; then
