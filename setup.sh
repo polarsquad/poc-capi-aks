@@ -160,7 +160,7 @@ else
     export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
 fi
 
-kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" >/dev/null
+kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig" >/dev/null
 
 echo "[setup] Initializing ClusterAPI (core + azure provider)..."
 clusterctl init --infrastructure azure 2>&1 | grep -v "unrecognized format" || true
@@ -281,11 +281,12 @@ kubectl wait --for=condition=Ready --timeout=600s cluster/${CLUSTER_NAME} 2>/dev
 print_step "7" "Install Flux on workload cluster (aks-workload/flux-system)"
 
 # Ensure we're on the management cluster context
-kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" >/dev/null 2>&1
+export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig" >/dev/null 2>&1
+print_success "Switched KUBECONFIG to management cluster: $KUBECONFIG"
 
 echo "[setup] Fetching workload cluster kubeconfig..."
 WORKLOAD_KUBECONFIG="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
-mkdir -p "${HOME}/.kube"
 
 # Retry logic for kubeconfig retrieval
 KUBECONFIG_ATTEMPTS=0
@@ -314,6 +315,7 @@ done
 
 # Switch to workload cluster context
 export KUBECONFIG="$WORKLOAD_KUBECONFIG"
+kubectl config use-context "kind-${CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig" >/dev/null 2>&1
 print_success "Switched KUBECONFIG to workload cluster: $WORKLOAD_KUBECONFIG"
 
 WL_FLUX_DIR="aks-workload/flux-system"
