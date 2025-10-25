@@ -29,8 +29,6 @@ spec:
         serviceoperator.azure.com/credential-from: azure-cluster-identity
       name: ${CLUSTER_NAME}
     spec:
-      sku:
-        tier: Free 
       dnsPrefix: ${CLUSTER_NAME}
       identity:
         type: SystemAssigned
@@ -97,48 +95,6 @@ spec:
     spec:
       azureName: pool0
       mode: System
-      owner:
-        name: ${AZURE_RESOURCE_GROUP_NAME}
-      type: VirtualMachineScaleSets
-      vmSize: ${AZURE_NODE_MACHINE_TYPE}
-
----
-apiVersion: cluster.x-k8s.io/v1beta1
-kind: MachinePool
-metadata:
-  name: ${CLUSTER_NAME}-pool1
-  namespace: default
-spec:
-  clusterName: ${CLUSTER_NAME}
-  replicas: ${WORKER_MACHINE_COUNT}
-  template:
-    spec:
-      bootstrap:
-        dataSecretName: ""
-      clusterName: ${CLUSTER_NAME}
-      infrastructureRef:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-        kind: AzureASOManagedMachinePool
-        name: ${CLUSTER_NAME}-pool1
-      version: ${KUBERNETES_VERSION}
-
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureASOManagedMachinePool
-metadata:
-  name: ${CLUSTER_NAME}-pool1
-  namespace: default
-spec:
-  resources:
-  - apiVersion: containerservice.azure.com/v1api20240901
-    kind: ManagedClustersAgentPool
-    metadata:
-      annotations:
-        serviceoperator.azure.com/credential-from: azure-cluster-identity
-      name: ${CLUSTER_NAME}-pool1
-    spec:
-      azureName: pool1
-      mode: User
       owner:
         name: ${AZURE_RESOURCE_GROUP_NAME}
       type: VirtualMachineScaleSets
