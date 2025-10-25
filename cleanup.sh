@@ -74,10 +74,6 @@ fi
 echo "Step 6: Local file cleanup..."
 rm -rf cluster-api/workload/*.kubeconfig || true
 rm -f ${CLUSTER_NAME}.kubeconfig || true
-rm -f capi-workload/flux-system/gotk-components.yaml || true
-rm -f capi-workload/flux-system/gotk-sync.yaml || true
-rm -f aks-workload/flux-system/gotk-components.yaml || true
-rm -f aks-workload/flux-system/gotk-sync.yaml || true
 ok "Local generated files removed."
 
 echo "Step 7: Destroy Azure resources using Terraform..."
@@ -124,11 +120,11 @@ echo "  Terraform state:" $([ -f terraform/terraform.tfstate ] && echo present |
 ok "Cleanup process completed."
 echo ""
 echo "All resources have been cleaned up:"
-echo "  ✓ Workload cluster (ClusterAPI Cluster resource)"
-echo "  ✓ Flux system (management cluster)"
+echo "  ✓ Workload cluster"
+echo "  ✓ Flux system"
 echo "  ✓ Azure identity secret"
 echo "  ✓ Management kind cluster"
 echo "  ✓ Generated manifests and kubeconfigs"
-echo "  ✓ Azure resources (service principal, resource group)"
+echo "  ✓ Azure resources via Terraform"
 echo ""
 echo "You may now remove the repository directory if desired."
