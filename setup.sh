@@ -224,7 +224,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  wait: true
+  wait: false
 EOF
 fi
 
@@ -317,7 +317,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  wait: true
+  wait: false
 EOF
 fi
 
