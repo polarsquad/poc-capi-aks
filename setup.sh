@@ -93,9 +93,22 @@ print_success "Environment variables configured"
 #############################################
 print_step "1" "Create Azure service principal and resource group using Terraform"
 
+# Get current Azure subscription and tenant from az CLI
+echo "[setup] Retrieving Azure subscription and tenant from current az login..."
+export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+export ARM_TENANT_ID=$(az account show --query tenantId -o tsv)
+
+print_success "Using Azure subscription: ${ARM_SUBSCRIPTION_ID}"
+print_success "Using Azure tenant: ${ARM_TENANT_ID}"
+
 cd terraform
 terraform init
-terraform apply -auto-approve
+
+# Run terraform apply with environment variables from current az login
+echo "[setup] Running terraform apply with current environment variables..."
+terraform apply -auto-approve \
+    -var="arm_subscription_id=${ARM_SUBSCRIPTION_ID}" \
+    -var="arm_tenant_id=${ARM_TENANT_ID}"
 
 # Capture Terraform outputs
 export ARM_SUBSCRIPTION_ID=$(terraform output -raw arm_subscription_id)
@@ -296,7 +309,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m0s
-  path: ./aks-workload/apps
+  path: ./aks-workload
   prune: true
   sourceRef:
     kind: GitRepository
@@ -338,10 +351,14 @@ for i in {1..40}; do
         print_success "Workload apps Kustomization Ready"
         break
     fi
-    sleep 10
     if [ $i -eq 40 ]; then
         print_warning "Workload apps Kustomization not Ready within timeout"
+        break
     fi
+    if (( i % 5 == 0 )); then
+        echo "[wait] apps Kustomization Ready condition still pending (attempt $i)"
+    fi
+    sleep 10
 done
 
 # Switch back to management cluster kubeconfig for tests referencing controllers there (optional)

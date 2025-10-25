@@ -63,10 +63,6 @@ echo "Step 4: Delete Azure identity secret..."
 kubectl delete secret azure-cluster-identity -n flux-system --context="kind-${CAPI_CLUSTER_NAME}" --ignore-not-found=true || true
 ok "Azure credential secret cleaned up."
 
-echo "Step 4: Delete Azure identity secret..."
-kubectl delete secret azure-cluster-identity -n flux-system --context="kind-${CAPI_CLUSTER_NAME}" --ignore-not-found=true || true
-ok "Azure credential secret cleaned up."
-
 echo "Step 5: Remove management kind cluster..."
 if kind get clusters | grep -q "^${CAPI_CLUSTER_NAME}$"; then
     kind delete cluster --name "$CAPI_CLUSTER_NAME" || warn "Kind cluster delete encountered issues"
@@ -88,16 +84,35 @@ ok "Local generated files removed."
 echo "Step 7: Destroy Azure resources using Terraform..."
 if [ -f terraform/terraform.tfstate ]; then
     echo "  Running 'terraform destroy' to remove Azure service principal and resource group..."
-    (cd terraform && terraform destroy -auto-approve) || warn "Terraform destroy encountered issues"
-    ok "Azure resources destroyed via Terraform."
-else
-    warn "No terraform state file found; skipping Terraform destroy."
-fi
-
-echo "Step 7: Destroy Azure resources using Terraform..."
-if [ -f terraform/terraform.tfstate ]; then
-    echo "  Running 'terraform destroy' to remove Azure service principal and resource group..."
-    (cd terraform && terraform destroy -auto-approve) || warn "Terraform destroy encountered issues"
+    
+    # Use environment variables if already set (e.g., from mise.toml)
+    # Check both ARM_TENANT_ID and AZURE_TENANT_ID (mise.toml uses AZURE_TENANT_ID)
+    if [ -z "${ARM_SUBSCRIPTION_ID:-}" ] || [ -z "${ARM_TENANT_ID:-}" ]; then
+        # Try AZURE_TENANT_ID if ARM_TENANT_ID is not set
+        if [ -n "${AZURE_TENANT_ID:-}" ]; then
+            export ARM_TENANT_ID="${AZURE_TENANT_ID}"
+        fi
+        
+        # If still missing, retrieve from az CLI
+        if [ -z "${ARM_SUBSCRIPTION_ID:-}" ] || [ -z "${ARM_TENANT_ID:-}" ]; then
+            echo "  Retrieving Azure subscription and tenant from current az login..."
+            export ARM_SUBSCRIPTION_ID=${ARM_SUBSCRIPTION_ID:-$(az account show --query id -o tsv 2>/dev/null || echo "")}
+            export ARM_TENANT_ID=${ARM_TENANT_ID:-$(az account show --query tenantId -o tsv 2>/dev/null || echo "")}
+        fi
+    fi
+    
+    # Run terraform destroy with environment variables
+    if [ -n "${ARM_SUBSCRIPTION_ID:-}" ] && [ -n "${ARM_TENANT_ID:-}" ]; then
+        echo "  Using subscription: ${ARM_SUBSCRIPTION_ID}"
+        echo "  Using tenant: ${ARM_TENANT_ID}"
+        (cd terraform && TF_INPUT=false terraform destroy -auto-approve \
+            -var="arm_subscription_id=${ARM_SUBSCRIPTION_ID}" \
+            -var="arm_tenant_id=${ARM_TENANT_ID}") || warn "Terraform destroy encountered issues"
+    else
+        warn "ARM_SUBSCRIPTION_ID or ARM_TENANT_ID not set; attempting destroy without variables"
+        (cd terraform && TF_INPUT=false terraform destroy -auto-approve) || warn "Terraform destroy encountered issues"
+    fi
+    
     ok "Azure resources destroyed via Terraform."
 else
     warn "No terraform state file found; skipping Terraform destroy."
