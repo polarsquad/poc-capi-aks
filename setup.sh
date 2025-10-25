@@ -315,7 +315,7 @@ done
 
 # Switch to workload cluster context
 export KUBECONFIG="$WORKLOAD_KUBECONFIG"
-kubectl config use-context "kind-${CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig" >/dev/null 2>&1
+kubectl config use-context "${CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig" >/dev/null 2>&1
 print_success "Switched KUBECONFIG to workload cluster: $WORKLOAD_KUBECONFIG"
 
 WL_FLUX_DIR="aks-workload/flux-system"

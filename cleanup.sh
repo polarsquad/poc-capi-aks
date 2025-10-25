@@ -25,42 +25,50 @@ if [ "$CONFIRM" != "yes" ]; then
 CLUSTER_NAME=${CLUSTER_NAME:-aks-workload-cluster}
 CAPI_CLUSTER_NAME=${CAPI_CLUSTER_NAME:-capi-mgmt}
 
+# Set KUBECONFIG to management cluster if it exists
+if [ -f "${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig" ]; then
+    export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+    ok "Using management cluster kubeconfig: $KUBECONFIG"
+else
+    warn "Management cluster kubeconfig not found at ${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+fi
+
 echo "Step 1: Suspend Flux reconciliation to reduce churn..."
 if command -v flux &>/dev/null; then
     # Suspend management cluster Kustomizations
-    flux -n flux-system suspend kustomization aks-infrastructure --context="kind-${CAPI_CLUSTER_NAME}" || true
-    flux -n flux-system suspend kustomization infrastructure --context="kind-${CAPI_CLUSTER_NAME}" || true
-    flux -n flux-system suspend kustomization flux-system --context="kind-${CAPI_CLUSTER_NAME}" || true
+    flux -n flux-system suspend kustomization aks-infrastructure || true
+    flux -n flux-system suspend kustomization infrastructure || true
+    flux -n flux-system suspend kustomization flux-system || true
     ok "Flux Kustomizations suspended (where present)."
 else
     warn "Flux CLI not found; skipping suspension."
 fi
 
 echo "Step 2: Delete workload cluster (Cluster resource + related ClusterAPI managed objects)..."
-if kubectl get cluster "$CLUSTER_NAME" --context="kind-${CAPI_CLUSTER_NAME}" >/dev/null 2>&1; then
-    kubectl delete cluster "$CLUSTER_NAME" --context="kind-${CAPI_CLUSTER_NAME}" --wait=true --timeout=600s || warn "Cluster delete timeout; continuing"
+if kubectl get cluster "$CLUSTER_NAME" >/dev/null 2>&1; then
+    kubectl delete cluster "$CLUSTER_NAME" --wait=true --timeout=600s || warn "Cluster delete timeout; continuing"
     ok "Workload Cluster resource deletion initiated."
 else
     warn "Cluster $CLUSTER_NAME not found."
 fi
 
 echo "Step 3: Delete Flux system objects (GitRepository + Kustomizations + components namespace)..."
-if kubectl get namespace flux-system --context="kind-${CAPI_CLUSTER_NAME}" >/dev/null 2>&1; then
+if kubectl get namespace flux-system >/dev/null 2>&1; then
     # Delete higher-level Kustomizations to clean owned resources
     for k in aks-infrastructure infrastructure flux-system; do
-        kubectl delete kustomization "$k" -n flux-system --context="kind-${CAPI_CLUSTER_NAME}" --ignore-not-found=true || true
+        kubectl delete kustomization "$k" -n flux-system --ignore-not-found=true || true
     done
     # Delete GitRepository
-    kubectl delete gitrepository flux-system -n flux-system --context="kind-${CAPI_CLUSTER_NAME}" --ignore-not-found=true || true
+    kubectl delete gitrepository flux-system -n flux-system --ignore-not-found=true || true
     # Delete controllers namespace last
-    kubectl delete namespace flux-system --context="kind-${CAPI_CLUSTER_NAME}" --timeout=180s || warn "Namespace flux-system deletion timeout"
+    kubectl delete namespace flux-system --timeout=180s || warn "Namespace flux-system deletion timeout"
     ok "Flux system resources deletion requested."
 else
     warn "Namespace flux-system already absent."
 fi
 
 echo "Step 4: Delete Azure identity secret..."
-kubectl delete secret azure-cluster-identity -n flux-system --context="kind-${CAPI_CLUSTER_NAME}" --ignore-not-found=true || true
+kubectl delete secret azure-cluster-identity -n flux-system --ignore-not-found=true || true
 ok "Azure credential secret cleaned up."
 
 echo "Step 5: Remove management kind cluster..."
