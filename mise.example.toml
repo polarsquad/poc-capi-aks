@@ -22,8 +22,7 @@ AZURE_TENANT_ID = "your-tenant-id"
 # Kind CAPI & CAPZ Management Variables (optional overrides)
 CAPI_CLUSTER_NAME = "capi-management"
 CAPI_VERSION = "v1.10.7" # Specify the CAPI version to use
-CAPZ_VERSION = "v1.21.1
-" # Specify the CAPZ version to use
+CAPZ_VERSION = "v1.21.1" # Specify the CAPZ version to use
 
 # Cluster Configuration (optional overrides)
 CLUSTER_NAME = "aks-workload-cluster"
