@@ -442,6 +442,22 @@ fi
 export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
 kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" >/dev/null 2>&1 || true
 
+#############################################
+# Step 10: Run end-to-end test suite
+#############################################
+print_step "10" "Running end-to-end test suite"
+
+if [ -f "./tests/test-e2e-system.sh" ]; then
+    echo "[setup] Executing test suite..."
+    if bash ./tests/test-e2e-system.sh; then
+        print_success "All tests passed!"
+    else
+        print_warning "Some tests failed or were skipped. Review output above for details."
+    fi
+else
+    print_warning "Test suite not found at ./tests/test-e2e-system.sh"
+fi
+
 echo ""
 echo "🎉 Setup Complete!"
 echo "=================="
