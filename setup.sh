@@ -382,8 +382,8 @@ done
 #############################################
 print_step "8" "Wait for apps Kustomization in workload cluster"
 for i in {1..40}; do
-    W_APP_STATUS=$(flux -n default get kustomizations apps 2>/dev/null | awk 'NR==2{print $2}' || true)
-    if [ "$W_APP_STATUS" = "Ready" ]; then
+    W_APP_STATUS=$(kubectl get kustomization apps -n default -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+    if [ "$W_APP_STATUS" = "True" ]; then
         print_success "Workload apps Kustomization Ready"
         break
     fi
