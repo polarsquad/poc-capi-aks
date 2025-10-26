@@ -486,4 +486,4 @@ echo "- View aks-infrastructure Kustomization: flux -n flux-system get kustomiza
 echo "- View Cluster resource: kubectl get cluster ${CLUSTER_NAME}"
 echo "- Destroy infrastructure: cd terraform && terraform destroy"
 echo ""
-echo "Documentation: ./README.md and ./docs/GETTING_STARTED.md"
+echo "Documentation: ./README.md"
