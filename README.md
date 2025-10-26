@@ -34,11 +34,13 @@ Install the following tools (or use [mise](https://mise.jdx.dev/) with `mise.exa
    ```
 
 2. **Configure environment** (copy and edit):
+   Note: Python greater than 3.10 is required to install the Azure CLI. If not already installed, run `mise use python@3.10.11` for a mise-compatible version to the Azure CLI.
    ```bash
    cp mise.example.toml mise.toml
    # Edit mise.toml with your GitHub and Azure details
-   mise trust
+   mise trust && mise install
    ```
+
 
 3. **Run setup**:
    ```bash
