@@ -10,6 +10,7 @@
 #  6. Wait until workload cluster (Cluster resource) becomes Ready.
 #  7. Install Flux on workload cluster (manifests under aks-workload/flux-system) and bootstrap its GitOps source.
 #  8. Wait for apps Kustomization in workload cluster (aks-workload/apps) to become Ready.
+#  9. Retrieve LoadBalancer external IP and open in browser.
 
 set -euo pipefail
 
@@ -396,6 +397,47 @@ for i in {1..40}; do
     sleep 10
 done
 
+#############################################
+# Step 9: Get LoadBalancer IP and open in browser
+#############################################
+print_step "9" "Retrieve LoadBalancer external IP and open in browser"
+
+# Ensure we're on the workload cluster context
+export KUBECONFIG="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
+
+echo "[setup] Waiting for ingress-nginx LoadBalancer to get an external IP..."
+EXTERNAL_IP=""
+for i in {1..30}; do
+    EXTERNAL_IP=$(kubectl get svc -n default ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    if [ -n "$EXTERNAL_IP" ] && [ "$EXTERNAL_IP" != "null" ]; then
+        print_success "LoadBalancer external IP: $EXTERNAL_IP"
+        break
+    fi
+    if (( i % 5 == 0 )); then
+        echo "[wait] Waiting for LoadBalancer IP assignment (attempt $i/30)..."
+    fi
+    sleep 10
+    if [ $i -eq 30 ]; then
+        print_warning "LoadBalancer IP not assigned within timeout"
+        EXTERNAL_IP=""
+    fi
+done
+
+if [ -n "$EXTERNAL_IP" ]; then
+    echo "[setup] Opening http://${EXTERNAL_IP} in default browser..."
+    if command -v open &> /dev/null; then
+        # macOS
+        open "http://${EXTERNAL_IP}" 2>/dev/null || print_warning "Failed to open browser automatically"
+    elif command -v xdg-open &> /dev/null; then
+        # Linux
+        xdg-open "http://${EXTERNAL_IP}" 2>/dev/null || print_warning "Failed to open browser automatically"
+    else
+        print_warning "Could not detect browser command. Please manually navigate to: http://${EXTERNAL_IP}"
+    fi
+else
+    print_warning "No external IP available. Check LoadBalancer service status with: kubectl get svc -n default ingress-nginx-controller"
+fi
+
 # Switch back to management cluster kubeconfig for tests referencing controllers there (optional)
 export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
 kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" >/dev/null 2>&1 || true
@@ -405,6 +447,11 @@ echo "🎉 Setup Complete!"
 echo "=================="
 echo ""
 echo "Your GitOps-driven AKS cluster (ClusterAPI + Flux) is ready!"
+if [ -n "$EXTERNAL_IP" ]; then
+    echo ""
+    echo "🌐 Ingress LoadBalancer: http://${EXTERNAL_IP}"
+    echo "   (Browser should have opened automatically)"
+fi
 echo ""
 echo "Next steps:"
 echo "1. Clone your GitOps repository: git clone https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}"
