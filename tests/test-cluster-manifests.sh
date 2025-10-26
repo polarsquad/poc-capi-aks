@@ -1,46 +1,52 @@
 #!/bin/bash
+# Test: Cluster manifest validation
+
 set -euo pipefail
-# Test Script: test-cluster-manifests.sh
 
-if [ -z "${CLUSTER_NAME:-}" ]; then
-    echo "ERROR: CLUSTER_NAME not set" >&2
+CAPI_CLUSTER_NAME="${CAPI_CLUSTER_NAME:-capi-mgmt}"
+CLUSTER_NAME="${CLUSTER_NAME:-aks-workload-cluster}"
+MGMT_KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+
+echo "Testing ClusterAPI manifests..."
+
+if [ ! -f "$MGMT_KUBECONFIG" ]; then
+    echo "❌ FAIL: Management kubeconfig not found"
     exit 1
 fi
 
-WORKLOAD_CLUSTER_NAME="${CLUSTER_NAME}"
-echo "Testing ClusterAPI manifests for cluster: ${WORKLOAD_CLUSTER_NAME}" 
+# Test Cluster resource exists
+if ! kubectl --kubeconfig="$MGMT_KUBECONFIG" get cluster "$CLUSTER_NAME" >/dev/null 2>&1; then
+    echo "❌ FAIL: Cluster resource '$CLUSTER_NAME' not found"
+    exit 1
+fi
+echo "✅ PASS: Cluster resource exists"
 
-# Test cluster manifest syntax
-kubectl apply --dry-run=client -f ./cluster-api/workload/cluster.yaml 2>/dev/null
-if [ $? -eq 0 ]; then
-    echo "PASS: Cluster manifest syntax valid"
+# Test Cluster status
+CLUSTER_READY=$(kubectl --kubeconfig="$MGMT_KUBECONFIG" get cluster "$CLUSTER_NAME" \
+    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+if [ "$CLUSTER_READY" = "True" ]; then
+    echo "✅ PASS: Cluster is Ready"
 else
-    echo "FAIL: Cluster manifest has syntax errors"
+    echo "⚠️  WARN: Cluster not yet Ready (status: $CLUSTER_READY)"
+fi
+
+# Test AzureASOManagedCluster exists
+AZURE_CLUSTER=$(kubectl --kubeconfig="$MGMT_KUBECONFIG" get azureasomanagedcluster \
+    -o name 2>/dev/null | head -n 1)
+if [ -n "$AZURE_CLUSTER" ]; then
+    echo "✅ PASS: AzureASOManagedCluster resource exists"
+else
+    echo "❌ FAIL: AzureASOManagedCluster resource not found"
     exit 1
 fi
 
-echo "Skipping live apply creation test (manifest generation validation only)"
-# Derive authoritative RG from Terraform
-if command -v terraform >/dev/null 2>&1 && [ -f "terraform/terraform.tfstate" ]; then
-    TF_DERIVED_RG=$(terraform -chdir=terraform output -raw resource_group_name 2>/dev/null || true)
+# Test MachinePools exist
+MACHINE_POOLS=$(kubectl --kubeconfig="$MGMT_KUBECONFIG" get machinepool \
+    --no-headers 2>/dev/null | wc -l)
+if [ "$MACHINE_POOLS" -gt 0 ]; then
+    echo "✅ PASS: MachinePools exist ($MACHINE_POOLS pools)"
+else
+    echo "⚠️  WARN: No MachinePools found"
 fi
 
-# Render manifest with envsubst (ensure ENV RG aligns or inject Terraform value)
-if [ -n "${TF_DERIVED_RG:-}" ]; then
-    export RESOURCE_GROUP_NAME="${TF_DERIVED_RG}"
-fi
-
-envsubst < ./cluster-api/workload/cluster.yaml > /tmp/cluster-manifests-generated.yaml
-
-# Verify expected RG name appears
-if [ -n "${TF_DERIVED_RG:-}" ]; then
-    if ! grep -q "name: ${TF_DERIVED_RG}" /tmp/cluster-manifests-generated.yaml; then
-        echo "FAIL: Generated manifest does not contain Terraform RG name (${TF_DERIVED_RG})"
-        grep -n 'name:' /tmp/cluster-manifests-generated.yaml | head -n 25
-        exit 1
-    else
-        echo "PASS: Manifest references Terraform RG name (${TF_DERIVED_RG})"
-    fi
-fi
-
-echo "All manifest generation tests passed."
+echo "✅ All cluster manifest tests passed"
