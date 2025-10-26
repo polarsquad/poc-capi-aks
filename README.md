@@ -53,6 +53,7 @@ The script will:
 - Provision AKS workload cluster
 - Deploy Flux and applications on workload cluster
 - Open the ingress-nginx LoadBalancer IP in your browser
+- Run end-to-end system tests
 
 ## Project Structure
 
@@ -112,6 +113,10 @@ kubectl get kustomization -A
 kubectl get svc -n default ingress-nginx-controller
 ```
 
+### Run tests manually:
+```bash
+./tests/test-e2e-system.sh
+```
 ## Cleanup
 
 Remove all resources:
