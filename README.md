@@ -18,7 +18,7 @@ This project provisions a complete GitOps-driven AKS infrastructure:
 Install the following tools (or use [mise](https://mise.jdx.dev/) with `mise.example.toml`):
 
 - `kubectl` (1.34+)
-- `az` CLI (2.77+)
+- `az` CLI (latest(requires python > 3.10))
 - `kind` (latest)
 - `clusterctl` (1.10.7+)
 - `flux` CLI (2.7.2+)
