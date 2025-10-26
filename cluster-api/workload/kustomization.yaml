@@ -1,8 +1,0 @@
-apiVersion: kustomization.config.k8s.io/v1beta1
-kind: Kustomization
-
-resources:
-  - cluster.yaml
-
-# patchesStrategicMerge:
-#   - cluster-patch.yaml

@@ -1,10 +1,21 @@
 #!/bin/bash
-# Complete setup script for Azure AKS with ClusterAPI and FluxCD
+# GitOps Setup Script: Terraform + kind ClusterAPI Management + Flux + Workload Cluster
+#
+# Target Flow:
+#  1. Use Terraform CLI to create Azure service principal and resource group.
+#  2. Create kind ClusterAPI management cluster.
+#  3. Create azure-cluster-identity secret from Terraform outputs.
+#  4. Install Flux (manifests under capi-workload/flux-system) and reconcile management GitOps tree.
+#  5. Ensure aks-infrastructure (Kustomization in ./capi-workload/infrastructure/aks-infrastructure) reconciles.
+#  6. Wait until workload cluster (Cluster resource) becomes Ready.
+#  7. Install Flux on workload cluster (manifests under aks-workload/flux-system) and bootstrap its GitOps source.
+#  8. Wait for apps Kustomization in workload cluster (aks-workload/apps) to become Ready.
+#  9. Retrieve LoadBalancer external IP and open in browser.
 
-set -e
+set -euo pipefail
 
-echo "🚀 Azure AKS with ClusterAPI and FluxCD Setup"
-echo "=============================================="
+echo "🚀 GitOps AKS Setup (Terraform + ClusterAPI + Flux)"
+echo "===================================================="
 
 # Colors for output
 RED='\033[0;31m'
@@ -41,7 +52,7 @@ check_command() {
 # Step 0: Prerequisites check
 print_step "0" "Checking prerequisites"
 
-REQUIRED_COMMANDS=("az" "kubectl" "helm" "kind" "clusterctl" "flux" "terraform" "git" "docker")
+REQUIRED_COMMANDS=("az" "kubectl" "helm" "kind" "clusterctl" "flux" "git" "docker" "terraform")
 
 for cmd in "${REQUIRED_COMMANDS[@]}"; do
     check_command $cmd
@@ -57,108 +68,406 @@ fi
 print_success "Azure CLI is logged in"
 
 # Check environment variables
-if [ -z "$GITHUB_TOKEN" ]; then
-    print_error "GITHUB_TOKEN environment variable is required"
+if [ -z "${GITHUB_TOKEN:-}" ]; then
+    print_warning "GITHUB_TOKEN not set (only needed for private repo or bootstrap generation); proceeding"
 fi
 
-if [ -z "$GITHUB_OWNER" ]; then
+if [ -z "${GITHUB_OWNER:-}" ]; then
     print_warning "GITHUB_OWNER not set, using default: your-github-username"
     export GITHUB_OWNER="your-github-username"
 fi
 
-if [ -z "$GITHUB_REPO" ]; then
+if [ -z "${GITHUB_REPO:-}" ]; then
     print_warning "GITHUB_REPO not set, using default: poc-capi-aks"
     export GITHUB_REPO="poc-capi-aks"
 fi
 
+if [ -z "${CAPI_CLUSTER_NAME:-}" ]; then
+    print_warning "CAPI_CLUSTER_NAME not set; using default: capi-mgmt"
+    export CAPI_CLUSTER_NAME=capi-mgmt
+fi
+
 print_success "Environment variables configured"
 
-# Step 1: Azure Infrastructure
-print_step "1" "Setting up Azure infrastructure with Terraform"
+#############################################
+# Step 1: Run Terraform to create Azure resources
+#############################################
+print_step "1" "Create Azure service principal and resource group using Terraform"
+
+# Get current Azure subscription and tenant from az CLI
+echo "[setup] Retrieving Azure subscription and tenant from current az login..."
+export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+export ARM_TENANT_ID=$(az account show --query tenantId -o tsv)
+
+print_success "Using Azure subscription: ${ARM_SUBSCRIPTION_ID}"
+print_success "Using Azure tenant: ${ARM_TENANT_ID}"
 
 cd terraform
-
-if [ ! -f "terraform.tfvars" ]; then
-    print_warning "terraform.tfvars not found, creating from example"
-    cp terraform.tfvars.example terraform.tfvars
-    print_warning "Please edit terraform/terraform.tfvars with your values and run this script again"
-    exit 1
-fi
-
 terraform init
-terraform plan
-read -p "Apply Terraform configuration? (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    terraform apply -auto-approve
-    print_success "Azure infrastructure created"
-else
-    print_error "Terraform apply cancelled"
-fi
+
+# Run terraform apply with environment variables from current az login
+echo "[setup] Running terraform apply with current environment variables..."
+terraform apply -auto-approve \
+    -var="arm_subscription_id=${ARM_SUBSCRIPTION_ID}" \
+    -var="arm_tenant_id=${ARM_TENANT_ID}"
+
+# Capture Terraform outputs
+export ARM_SUBSCRIPTION_ID=$(terraform output -raw arm_subscription_id)
+export AZURE_TENANT_ID=$(terraform output -raw arm_tenant_id)
+export AZURE_CLIENT_ID=$(terraform output -raw service_principal_client_id)
+export AZURE_CLIENT_SECRET=$(terraform output -raw service_principal_client_secret)
+export AZURE_LOCATION=$(terraform output -raw azure_resource_group_location 2>/dev/null || echo "swedencentral")
+export AZURE_RESOURCE_GROUP_NAME=$(terraform output -raw azure_resource_group_name 2>/dev/null || echo "aks-workload-cluster-rg")
+export AZURE_SERVICE_PRINCIPAL_NAME=$(terraform output -raw azure_service_principal_name)
 
 cd ..
 
-# Step 2: ClusterAPI Management Cluster
-print_step "2" "Setting up ClusterAPI management cluster"
+print_success "Azure resources created via Terraform"
+echo "  - Subscription: ${ARM_SUBSCRIPTION_ID}"
+echo "  - Tenant: ${AZURE_TENANT_ID}"
+echo "  - Service Principal: ${AZURE_SERVICE_PRINCIPAL_NAME}"
+echo "  - Resource Group: ${AZURE_RESOURCE_GROUP_NAME} (${AZURE_LOCATION})"
 
-chmod +x cluster-api/management/bootstrap.sh
-./cluster-api/management/bootstrap.sh
+
+# Step 2: ClusterAPI Management Cluster (includes Flux + Terraform Controller bootstrap)
+print_step "2" "Create kind management cluster and initialize ClusterAPI"
+
+echo "[setup] Creating kind cluster '${CAPI_CLUSTER_NAME}' (if absent)..."
+if ! kind get clusters | grep -q "^${CAPI_CLUSTER_NAME}$"; then
+cat <<EOF | kind create cluster --name "${CAPI_CLUSTER_NAME}" --config=- --kubeconfig="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  extraMounts:
+  - hostPath: /var/run/docker.sock
+    containerPath: /var/run/docker.sock
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        system-reserved: memory=8Gi
+        eviction-hard: memory.available<500Mi
+        eviction-soft: memory.available<1Gi
+        eviction-soft-grace-period: memory.available=1m30s
+EOF
+    export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+    print_success "Created kind cluster and saved kubeconfig to ${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+else
+    echo "[setup] Reusing existing kind cluster '${CAPI_CLUSTER_NAME}'."
+    # Export kubeconfig for existing cluster
+    kind export kubeconfig --name="${CAPI_CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+    export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+fi
+
+kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig" >/dev/null
+
+echo "[setup] Initializing ClusterAPI (core + azure provider)..."
+clusterctl init --infrastructure azure 2>&1 | grep -v "unrecognized format" || true
+
+echo "[setup] Waiting for ClusterAPI controllers..."
+kubectl wait --for=condition=Available --timeout=300s -n capi-system deployment/capi-controller-manager 2>&1 | grep -v "unrecognized format"
+kubectl wait --for=condition=Available --timeout=300s -n capz-system deployment/capz-controller-manager 2>&1 | grep -v "unrecognized format"
 
 print_success "ClusterAPI management cluster ready"
 
-# Step 3: Azure Credentials
-print_step "3" "Setting up Azure credentials for ClusterAPI"
+print_step "3" "Create Azure identity secret from Terraform outputs and mise.toml environment variables"
 
-chmod +x cluster-api/management/setup-azure-credentials.sh
-./cluster-api/management/setup-azure-credentials.sh
+echo "[setup] Creating azure-cluster-identity secret from Terraform outputs and mise.toml environment variables..."
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+    name: azure-cluster-identity
+    namespace: default
+stringData:
+    ARM_SUBSCRIPTION_ID: "${ARM_SUBSCRIPTION_ID}"
+    AZURE_SUBSCRIPTION_ID: "${ARM_SUBSCRIPTION_ID}"
+    AZURE_TENANT_ID: "${AZURE_TENANT_ID}"
+    AZURE_CLIENT_ID: "${AZURE_CLIENT_ID}"
+    AZURE_CLIENT_SECRET: "${AZURE_CLIENT_SECRET}"
+    AZURE_LOCATION: "${AZURE_LOCATION}"
+    AZURE_RESOURCE_GROUP_NAME: "${AZURE_RESOURCE_GROUP_NAME}"
+    AZURE_SERVICE_PRINCIPAL_NAME: "${AZURE_SERVICE_PRINCIPAL_NAME}"
+    CLUSTER_NAME: "${CLUSTER_NAME}"
+    KUBERNETES_VERSION: "${KUBERNETES_VERSION}"
+    WORKER_MACHINE_COUNT: "${WORKER_MACHINE_COUNT}"
+    AZURE_NODE_MACHINE_TYPE: "${AZURE_NODE_MACHINE_TYPE}"
+EOF
 
-print_success "Azure credentials configured"
+print_success "Azure identity & config secrets configured from Terraform outputs"
 
-# Step 4: AKS Workload Cluster
-print_step "4" "Creating AKS workload cluster"
+print_step "4" "Install Flux controllers on management cluster (manifests path capi-workload/flux-system)"
 
-cd cluster-api/workload
-chmod +x deploy.sh
-./deploy.sh
-cd ../..
-
-print_success "AKS workload cluster created"
-
-# Step 5: FluxCD Setup
-print_step "5" "Setting up FluxCD"
-
-chmod +x flux-config/bootstrap-flux.sh
-./flux-config/bootstrap-flux.sh
-
-print_success "FluxCD configured"
-
-# Step 6: Run Tests
-print_step "6" "Running comprehensive tests"
-
-chmod +x tests/*.sh
-./tests/test-e2e-system.sh
-
-if [ $? -eq 0 ]; then
-    print_success "All tests passed!"
-else
-    print_warning "Some tests failed, check the output above"
+FLUX_COMPONENTS_DIR="capi-workload/flux-system"
+GOTK_COMPONENTS_FILE="${FLUX_COMPONENTS_DIR}/gotk-components.yaml"
+GOTK_SYNC_FILE="${FLUX_COMPONENTS_DIR}/gotk-sync.yaml"
+mkdir -p "$FLUX_COMPONENTS_DIR"
+if [ ! -f "$GOTK_COMPONENTS_FILE" ] || [ ! -f "$GOTK_SYNC_FILE" ]; then
+    echo "[setup] Generating Flux manifests via 'flux install --export'..."
+    flux install --export > "$GOTK_COMPONENTS_FILE"
+    cat > "$GOTK_SYNC_FILE" <<EOF
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  interval: 1m0s
+  url: https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}
+  ref:
+    branch: ${GITHUB_BRANCH:-main}
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./capi-workload
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  wait: false
+EOF
 fi
 
-# Final summary
+echo "[setup] Applying Flux system manifests..."
+kubectl apply -f "$GOTK_COMPONENTS_FILE"
+kubectl apply -f "$GOTK_SYNC_FILE"
+
+echo "[setup] Waiting for Flux controllers to become Available..."
+kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/source-controller || true
+kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/kustomize-controller || true
+kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/helm-controller || true
+kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/notification-controller || true
+
+print_step "4a" "Wait for GitRepository flux-system Ready"
+for i in {1..30}; do
+    GIT_READY=$(kubectl get gitrepository -n flux-system flux-system -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
+    if [ "$GIT_READY" = "True" ]; then
+        print_success "GitRepository flux-system Ready"
+        break
+    fi
+    sleep 6
+    if [ $i -eq 30 ]; then
+        print_warning "GitRepository flux-system not Ready within timeout; proceeding anyway"
+    fi
+done
+
+print_step "5" "Wait for aks-infrastructure Kustomization reconciliation"
+echo "[setup] Waiting for Kustomization 'aks-infrastructure' to become Ready..."
+for i in {1..40}; do
+    KUST_READY=$(kubectl get kustomization aks-infrastructure -n default -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+    if [ "$KUST_READY" = "True" ]; then
+        print_success "aks-infrastructure Kustomization Ready"
+        break
+    fi
+    if (( i % 5 == 0 )); then
+        echo "[wait] aks-infrastructure Ready condition still pending (attempt $i)"
+    fi
+    sleep 6
+    if [ $i -eq 40 ]; then
+        print_warning "aks-infrastructure Kustomization not Ready within timeout; continuing"
+    fi
+done
+
+print_step "6" "Wait for Cluster resource readiness (workload cluster creation)"
+export CLUSTER_NAME=${CLUSTER_NAME:-aks-workload-cluster}
+kubectl wait --for=condition=Ready --timeout=600s cluster/${CLUSTER_NAME} 2>/dev/null || print_warning "Cluster Ready condition timeout"
+
+print_step "7" "Install Flux on workload cluster (aks-workload/flux-system)"
+
+# Ensure we're on the management cluster context
+export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig" >/dev/null 2>&1
+print_success "Switched KUBECONFIG to management cluster: $KUBECONFIG"
+
+echo "[setup] Fetching workload cluster kubeconfig..."
+WORKLOAD_KUBECONFIG="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
+
+# Retry logic for kubeconfig retrieval
+KUBECONFIG_ATTEMPTS=0
+MAX_KUBECONFIG_ATTEMPTS=12
+until [ -f "$WORKLOAD_KUBECONFIG" ] && [ -s "$WORKLOAD_KUBECONFIG" ]; do
+    if [ $KUBECONFIG_ATTEMPTS -ge $MAX_KUBECONFIG_ATTEMPTS ]; then
+        print_error "Failed to retrieve kubeconfig for cluster '${CLUSTER_NAME}' after $MAX_KUBECONFIG_ATTEMPTS attempts. Cluster may not be fully provisioned."
+    fi
+    
+    echo "[setup] Attempting to retrieve kubeconfig (attempt $((KUBECONFIG_ATTEMPTS + 1))/$MAX_KUBECONFIG_ATTEMPTS)..."
+    clusterctl get kubeconfig ${CLUSTER_NAME} > "$WORKLOAD_KUBECONFIG" 2>/dev/null || true
+    
+    # Check if file exists and is not empty
+    if [ -f "$WORKLOAD_KUBECONFIG" ] && [ -s "$WORKLOAD_KUBECONFIG" ]; then
+        print_success "Kubeconfig retrieved successfully"
+        break
+    else
+        rm -f "$WORKLOAD_KUBECONFIG" 2>/dev/null || true
+        KUBECONFIG_ATTEMPTS=$((KUBECONFIG_ATTEMPTS + 1))
+        if [ $KUBECONFIG_ATTEMPTS -lt $MAX_KUBECONFIG_ATTEMPTS ]; then
+            echo "[setup] Kubeconfig not ready yet, waiting 10 seconds before retry..."
+            sleep 10
+        fi
+    fi
+done
+
+# Switch to workload cluster context
+export KUBECONFIG="$WORKLOAD_KUBECONFIG"
+kubectl config use-context "${CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig" >/dev/null 2>&1
+print_success "Switched KUBECONFIG to workload cluster: $WORKLOAD_KUBECONFIG"
+
+WL_FLUX_DIR="aks-workload/flux-system"
+WL_GOTK_COMPONENTS="$WL_FLUX_DIR/gotk-components.yaml"
+WL_GOTK_SYNC="$WL_FLUX_DIR/gotk-sync.yaml"
+mkdir -p "$WL_FLUX_DIR"
+if [ ! -f "$WL_GOTK_COMPONENTS" ] || [ ! -f "$WL_GOTK_SYNC" ]; then
+    echo "[setup] Generating workload cluster Flux manifests..."
+    flux install --export > "$WL_GOTK_COMPONENTS"
+    cat > "$WL_GOTK_SYNC" <<EOF
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  interval: 1m0s
+  url: https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}
+  ref:
+    branch: ${GITHUB_BRANCH:-main}
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./aks-workload
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  wait: false
+EOF
+fi
+
+echo "[setup] Applying workload Flux system manifests..."
+kubectl apply -f "$WL_GOTK_COMPONENTS" || print_warning "Failed applying workload gotk-components; will retry"
+kubectl apply -f "$WL_GOTK_SYNC" || print_warning "Failed applying workload gotk-sync; will retry"
+
+echo "[setup] Waiting for workload Flux controllers to become Available..."
+kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/source-controller || print_warning "source-controller not Available in workload cluster"
+kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/kustomize-controller || print_warning "kustomize-controller not Available in workload cluster"
+kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/helm-controller || print_warning "helm-controller not Available in workload cluster"
+kubectl -n flux-system wait --for=condition=Available --timeout=240s deployment/notification-controller || print_warning "notification-controller not Available in workload cluster"
+
+echo "[setup] Waiting for workload GitRepository flux-system Ready..."
+for i in {1..30}; do
+    WG_STATUS=$(kubectl get gitrepository -n flux-system flux-system -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "")
+    if [ "$WG_STATUS" = "True" ]; then
+        print_success "Workload GitRepository Ready"
+        break
+    fi
+    sleep 6
+    if [ $i -eq 30 ]; then
+        print_warning "Workload GitRepository not Ready within timeout"
+    fi
+done
+
+#############################################
+# Step 8: Wait for apps reconciliation in workload cluster
+#############################################
+print_step "8" "Wait for apps Kustomization in workload cluster"
+for i in {1..40}; do
+    W_APP_STATUS=$(kubectl get kustomization apps -n default -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+    if [ "$W_APP_STATUS" = "True" ]; then
+        print_success "Workload apps Kustomization Ready"
+        break
+    fi
+    if [ $i -eq 40 ]; then
+        print_warning "Workload apps Kustomization not Ready within timeout"
+        break
+    fi
+    if (( i % 5 == 0 )); then
+        echo "[wait] apps Kustomization Ready condition still pending (attempt $i)"
+    fi
+    sleep 10
+done
+
+#############################################
+# Step 9: Get LoadBalancer IP and open in browser
+#############################################
+print_step "9" "Retrieve LoadBalancer external IP and open in browser"
+
+# Ensure we're on the workload cluster context
+export KUBECONFIG="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
+
+echo "[setup] Waiting for ingress-nginx LoadBalancer to get an external IP..."
+EXTERNAL_IP=""
+for i in {1..30}; do
+    EXTERNAL_IP=$(kubectl get svc -n default default-ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    if [ -n "$EXTERNAL_IP" ] && [ "$EXTERNAL_IP" != "null" ]; then
+        print_success "LoadBalancer external IP: $EXTERNAL_IP"
+        break
+    fi
+    if (( i % 5 == 0 )); then
+        echo "[wait] Waiting for LoadBalancer IP assignment (attempt $i/30)..."
+    fi
+    sleep 10
+    if [ $i -eq 30 ]; then
+        print_warning "LoadBalancer IP not assigned within timeout"
+        EXTERNAL_IP=""
+    fi
+done
+
+if [ -n "$EXTERNAL_IP" ]; then
+    echo "[setup] Opening http://${EXTERNAL_IP} in default browser..."
+    if command -v open &> /dev/null; then
+        # macOS
+        open "http://${EXTERNAL_IP}" 2>/dev/null || print_warning "Failed to open browser automatically"
+    elif command -v xdg-open &> /dev/null; then
+        # Linux
+        xdg-open "http://${EXTERNAL_IP}" 2>/dev/null || print_warning "Failed to open browser automatically"
+    else
+        print_warning "Could not detect browser command. Please manually navigate to: http://${EXTERNAL_IP}"
+    fi
+else
+    print_warning "No external IP available. Check LoadBalancer service status with: kubectl get svc -n default ingress-nginx-controller"
+fi
+
+# Switch back to management cluster kubeconfig for tests referencing controllers there (optional)
+export KUBECONFIG="${HOME}/.kube/${CAPI_CLUSTER_NAME}.kubeconfig"
+kubectl config use-context "kind-${CAPI_CLUSTER_NAME}" >/dev/null 2>&1 || true
+
 echo ""
 echo "🎉 Setup Complete!"
 echo "=================="
 echo ""
-echo "Your Azure AKS cluster with ClusterAPI and FluxCD is ready!"
+echo "Your GitOps-driven AKS cluster (ClusterAPI + Flux) is ready!"
+if [ -n "$EXTERNAL_IP" ]; then
+    echo ""
+    echo "🌐 Ingress LoadBalancer: http://${EXTERNAL_IP}"
+    echo "   (Browser should have opened automatically)"
+fi
 echo ""
 echo "Next steps:"
 echo "1. Clone your GitOps repository: git clone https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}"
-echo "2. Add your applications to the apps/ directory"
-echo "3. Commit and push changes - Flux will automatically deploy them"
+echo "2. Review management GitOps tree: ./capi-workload (flux-system, infrastructure/aks-infrastructure)"
+echo "3. Review workload GitOps tree: ./aks-workload (flux-system, apps)"
+echo "4. Add/modify application manifests under aks-workload/apps/sample-apps"
+echo "5. Commit and push changes - both Flux instances will reconcile"
+echo "6. View workload cluster Kustomization status: flux -n flux-system get kustomizations"
+echo "7. Switch to workload cluster: export KUBECONFIG=${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
+echo "8. Inspect workload apps: flux get all"
 echo ""
 echo "Useful commands:"
-echo "- Access workload cluster: export KUBECONFIG=cluster-api/workload/aks-workload-cluster.kubeconfig"
+echo "- Access workload cluster: export KUBECONFIG=${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
 echo "- Check Flux status: flux get all"
-echo "- Run tests: ./tests/test-e2e-system.sh"
+echo "- View aks-infrastructure Kustomization: flux -n flux-system get kustomizations aks-infrastructure"
+echo "- View Cluster resource: kubectl get cluster ${CLUSTER_NAME}"
+echo "- Destroy infrastructure: cd terraform && terraform destroy"
 echo ""
-echo "Documentation: ./docs/README.md"
+echo "Documentation: ./README.md and ./docs/GETTING_STARTED.md"

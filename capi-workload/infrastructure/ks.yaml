@@ -1,0 +1,21 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: aks-infrastructure
+  namespace: default
+spec:
+  interval: 10m0s
+  path: ./capi-workload/infrastructure/aks-infrastructure
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  wait: true
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: azure-cluster-identity
+
+

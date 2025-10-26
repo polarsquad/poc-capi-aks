@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.47.0"
+      version = "~> 4.50.0"
     }
     azuread = {
       source  = "hashicorp/azuread"
@@ -14,24 +14,38 @@ terraform {
 
 provider "azurerm" {
   features {}
+  subscription_id = var.arm_subscription_id
 }
 
 provider "azuread" {}
 
-# Variables
-variable "resource_group_name" {
+# Variables - Authentication
+variable "arm_subscription_id" {
+  description = "Azure subscription ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "arm_tenant_id" {
+  description = "Azure AD tenant ID"
+  type        = string
+  sensitive   = true
+}
+
+# Variables - Infrastructure
+variable "azure_resource_group_name" {
   description = "Name of the resource group"
   type        = string
   default     = "aks-workload-cluster-rg"
 }
 
-variable "location" {
+variable "azure_location" {
   description = "Azure region"
   type        = string
   default     = "swedencentral"
 }
 
-variable "service_principal_name" {
+variable "azure_service_principal_name" {
   description = "Name of the service principal"
   type        = string
   default     = "aks-workload-cluster-sp"
@@ -43,8 +57,8 @@ data "azurerm_subscription" "current" {}
 
 # Resource Group
 resource "azurerm_resource_group" "main" {
-  name     = var.resource_group_name
-  location = var.location
+  name     = var.azure_resource_group_name
+  location = var.azure_location
 
   tags = {
     Environment = "poc"
@@ -55,46 +69,45 @@ resource "azurerm_resource_group" "main" {
 
 # Azure AD Application
 resource "azuread_application" "main" {
-  display_name = var.service_principal_name
+  display_name = var.azure_service_principal_name
+  # Assigns ownership of the Azure AD application to the current authenticated user/service principal
   owners       = [data.azurerm_client_config.current.object_id]
 }
 
-# Service Principal
 resource "azuread_service_principal" "main" {
   client_id = azuread_application.main.client_id
-  owners         = [data.azurerm_client_config.current.object_id]
+  owners    = [data.azurerm_client_config.current.object_id]
 }
 
-# Service Principal Password
 resource "azuread_service_principal_password" "main" {
   service_principal_id = azuread_service_principal.main.id
+  depends_on = [azuread_service_principal.main]
 }
 
-# Role Assignment - Contributor on Subscription
 resource "azurerm_role_assignment" "contributor" {
   scope                = data.azurerm_subscription.current.id
   role_definition_name = "Contributor"
   principal_id         = azuread_service_principal.main.object_id
 }
 
-# Outputs
-output "resource_group_name" {
-  description = "Name of the created resource group"
-  value       = azurerm_resource_group.main.name
-}
-
-output "resource_group_location" {
+#Outputs
+output "azure_resource_group_location" {
   description = "Location of the resource group"
   value       = azurerm_resource_group.main.location
 }
 
 output "service_principal_client_id" {
   description = "Client ID of the service principal"
+  value       = azuread_application.main.client_id
+}
+
+output "service_principal_sp_client_id" {
+  description = "Client ID of the service principal resource"
   value       = azuread_service_principal.main.client_id
 }
 
 output "service_principal_client_secret" {
-  description = "Client secret of the service principal"
+  description = "Client secret of the service principal (handle securely, as this is sensitive information)"
   value       = azuread_service_principal_password.main.value
   sensitive   = true
 }
@@ -104,17 +117,18 @@ output "service_principal_object_id" {
   value       = azuread_service_principal.main.object_id
 }
 
-output "tenant_id" {
+output "arm_tenant_id" {
   description = "Azure AD tenant ID"
-  value       = data.azurerm_client_config.current.tenant_id
+  value       = var.arm_tenant_id
+  sensitive   = true
 }
-
-output "subscription_id" {
+output "arm_subscription_id" {
   description = "Azure subscription ID"
-  value       = data.azurerm_client_config.current.subscription_id
+  value       = var.arm_subscription_id
+  sensitive   = true
 }
 
-output "service_principal_name" {
+output "azure_service_principal_name" {
   description = "Configured name of the service principal"
-  value       = var.service_principal_name
+  value       = var.azure_service_principal_name
 }
