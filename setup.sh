@@ -382,7 +382,7 @@ done
 #############################################
 print_step "8" "Wait for apps Kustomization in workload cluster"
 for i in {1..40}; do
-    W_APP_STATUS=$(flux -n flux-system get kustomizations apps 2>/dev/null | awk 'NR==2{print $2}' || true)
+    W_APP_STATUS=$(flux -n default get kustomizations apps 2>/dev/null | awk 'NR==2{print $2}' || true)
     if [ "$W_APP_STATUS" = "Ready" ]; then
         print_success "Workload apps Kustomization Ready"
         break
