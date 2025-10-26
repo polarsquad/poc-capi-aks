@@ -117,6 +117,7 @@ kubectl get svc -n default ingress-nginx-controller
 ```bash
 ./tests/test-e2e-system.sh
 ```
+
 ## Cleanup
 
 Remove all resources:

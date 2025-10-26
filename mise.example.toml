@@ -27,8 +27,8 @@ CAPZ_VERSION = "v1.21.1
 # Cluster Configuration (optional overrides)
 CLUSTER_NAME = "aks-workload-cluster"
 AZURE_LOCATION = "swedencentral"
-AZURE_RESOURCE_GROUP_NAME: "aks-workload-rg"
-AZURE_SERVICE_PRINCIPAL_NAME: "aks-workload-sp"
+AZURE_RESOURCE_GROUP_NAME = "aks-workload-rg"
+AZURE_SERVICE_PRINCIPAL_NAME = "aks-workload-sp"
 KUBERNETES_VERSION = "1.33.3"  # Specify the Kubernetes version you want to use
 AZURE_NODE_MACHINE_TYPE = "standard_b2s"  # Specify the Azure VM size for the nodes
 WORKER_MACHINE_COUNT = "1"  # Number of worker nodes in the cluster
