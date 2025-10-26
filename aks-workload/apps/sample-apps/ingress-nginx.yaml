@@ -46,8 +46,8 @@ spec:
           value: "false"
       resources:
         requests:
-          memory: 75Mi
-          cpu: 50m
+          memory: 35Mi
+          cpu: 25m
         limits:
           cpu: 50m
-          memory: 75Mi
+          memory: 70Mi
