@@ -6,8 +6,3 @@ namespace: default
 resources:
   - ingress-nginx.yaml
   - deployment.yaml
-
-commonLabels:
-  app.kubernetes.io/name: sample-app
-  app.kubernetes.io/version: "1.0.0"
-  app.kubernetes.io/managed-by: flux
