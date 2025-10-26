@@ -408,7 +408,7 @@ export KUBECONFIG="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig"
 echo "[setup] Waiting for ingress-nginx LoadBalancer to get an external IP..."
 EXTERNAL_IP=""
 for i in {1..30}; do
-    EXTERNAL_IP=$(kubectl get svc -n default ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    EXTERNAL_IP=$(kubectl get svc -n default default-ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
     if [ -n "$EXTERNAL_IP" ] && [ "$EXTERNAL_IP" != "null" ]; then
         print_success "LoadBalancer external IP: $EXTERNAL_IP"
         break
