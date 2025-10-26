@@ -5,7 +5,7 @@ metadata:
   name: apps
   namespace: default
 spec:
-  interval: 10m0s
+  interval: 2m0s
   path: ./aks-workload/apps/sample-apps
   prune: true
   sourceRef:
