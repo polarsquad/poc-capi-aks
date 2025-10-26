@@ -315,15 +315,8 @@ done
 
 # Switch to workload cluster context
 export KUBECONFIG="$WORKLOAD_KUBECONFIG"
-# Get the actual context name from the kubeconfig (don't assume it matches CLUSTER_NAME)
-WORKLOAD_CONTEXT=$(kubectl config get-contexts -o name 2>/dev/null | head -n 1)
-if [ -n "$WORKLOAD_CONTEXT" ]; then
-    kubectl config use-context "$WORKLOAD_CONTEXT" >/dev/null 2>&1 || true
-    print_success "Switched KUBECONFIG to workload cluster: $WORKLOAD_KUBECONFIG (context: $WORKLOAD_CONTEXT)"
-else
-    print_warning "Could not determine workload context name, proceeding anyway"
-    print_success "Switched KUBECONFIG to workload cluster: $WORKLOAD_KUBECONFIG"
-fi
+kubectl config use-context "${CLUSTER_NAME}" --kubeconfig="${HOME}/.kube/${CLUSTER_NAME}.kubeconfig" >/dev/null 2>&1
+print_success "Switched KUBECONFIG to workload cluster: $WORKLOAD_KUBECONFIG"
 
 WL_FLUX_DIR="aks-workload/flux-system"
 WL_GOTK_COMPONENTS="$WL_FLUX_DIR/gotk-components.yaml"
@@ -388,7 +381,7 @@ done
 #############################################
 print_step "8" "Wait for apps Kustomization in workload cluster"
 for i in {1..40}; do
-    W_APP_STATUS=$(flux -n flux-system get kustomizations apps 2>/dev/null | awk 'NR==2{print $2}')
+    W_APP_STATUS=$(flux -n flux-system get kustomizations apps 2>/dev/null | awk 'NR==2{print $2}' || true)
     if [ "$W_APP_STATUS" = "Ready" ]; then
         print_success "Workload apps Kustomization Ready"
         break
